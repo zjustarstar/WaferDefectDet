@@ -6,7 +6,7 @@ from MvImport.CameraParams_header import *
 from MvImport.MvCameraControl_class import *
 
 
-class CameraOperation(object):
+class xscCameraOperation(object):
     def __init__(self):
         self.m_device_list = None
         self.m_camera = MvCamera()
@@ -127,7 +127,7 @@ class CameraOperation(object):
 
         # 图像保存
         image = self.get_image()
-        co.stop_grabbing()
+        self.stop_grabbing()
 
         return image
 

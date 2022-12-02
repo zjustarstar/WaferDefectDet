@@ -1,4 +1,5 @@
 import cv2
+import logging
 from flask import json
 
 # 各个算法模块
@@ -11,6 +12,9 @@ import cross_position_checker as cpc
 
 
 def do_by_commandID(id):
+    logger = logging.getLogger(CFG.LOG_NAME)
+    logger.info("do_by_commandID")
+
     # PP_GetRectileID, 版号读取
     if id == 3:
         img_path = "testimg/ocr/ng.jpg"

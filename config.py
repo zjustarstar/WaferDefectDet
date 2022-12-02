@@ -8,4 +8,5 @@ AD_GOOD = False
 AD_NG = True
 
 # 一些参数的配置
+LOG_NAME = "WDD_LOG"
 COMMAND_ID = "command_id"
