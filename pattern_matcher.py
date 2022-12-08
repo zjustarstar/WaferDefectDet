@@ -4,7 +4,13 @@ import config as CFG
 import numpy as np
 
 
-def nms(dets, thresh):
+def nms(dets, thresh, max_result):
+    '''
+    :param dets:
+    :param thresh: 某个pattern区域和已有区域的重叠度超过该值,则去掉
+    :param max_result: 最多返回多少个匹配的pattern
+    :return:
+    '''
     """Pure Python NMS baseline."""
     dets = np.array(dets)
     x1 = dets[:, 0]#第0列
@@ -31,25 +37,28 @@ def nms(dets, thresh):
         w = np.maximum(0.0, xx2 - xx1 + 1)
         h = np.maximum(0.0, yy2 - yy1 + 1)
         inter = w * h
-        #交/并得到iou值
-        ovr = inter / (areas[i] + areas[order[1:]] - inter)
-        #ind为所有与窗口i的iou值小于threshold值的窗口的index，其他窗口此次都被窗口i吸收
+        #和anchor矩形的面积比
+        ovr = inter / (areas[i])
+        #ind为所有与窗口i的面积比小于threshold值的窗口的index，其他窗口此次都被窗口i吸收
         inds = np.where(ovr <= thresh)[0]
         #下一次计算前要把窗口i去除，所有i对应的在order里的位置是0，所以剩下的加1
         order = order[inds + 1]
 
     # 返回最终的rect
     ret_rect = []
+    keep = keep[0:min(len(keep), max_result)]
     for i in keep:
-        ret_rect.append([int(x1[i]), int(y1[i]), int(x2[i]), int(y2[i])])
+        ret_rect.append([int(x1[i]), int(y1[i]), int(x2[i]), int(y2[i]), (scores[i])])
 
     return ret_rect
 
 
 def pattern_matcher(img_path, temp_path):
-    match_thresh = 0.1
-    msg = "OK"
+    match_thresh = 0.1    # 用于pattern match
+    overlap_thresh = 0.3  # 用于nms
+    max_patterns = 6      # 最多有多少个pattern
 
+    msg = "OK"
     template = cv2.imread(temp_path)
     if template is None:
         msg = "fail to load template image"
@@ -72,9 +81,9 @@ def pattern_matcher(img_path, temp_path):
     result = cv2.matchTemplate(edged_img, template, cv2.TM_CCOEFF_NORMED)
 
     # 找到最佳和最差匹配点
-    (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
-    (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
-    res_rects = [[startX, startY, startX+tW, startY+tH]]
+    # (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
+    # (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
+    # res_rects = [[startX, startY, startX+tW, startY+tH]]
     #print(minVal, maxVal, minLoc, maxLoc)
 
     # 查找所有匹配值中大于阈值的点;
@@ -84,14 +93,14 @@ def pattern_matcher(img_path, temp_path):
         conf = result[i[1]][i[0]]
         all_rects.append([i[0], i[1], i[0]+tW, i[1]+tH, conf])
 
-    nms_rect = nms(all_rects, 0.5)
+    nms_rect = nms(all_rects, overlap_thresh, max_patterns)
 
     return CFG.RESULT_OK, msg, nms_rect
 
 
 def test_matcher():
-    image_path = "testimg/temp_matcher/img1.jpg"
-    temp_path = "testimg/temp_matcher/temp1.jpg"
+    image_path = "testimg/temp_matcher/img2.jpg"
+    temp_path = "testimg/temp_matcher/temp2.jpg"
     image = cv2.imread(image_path)
     _, _, res = pattern_matcher(image_path, temp_path)
 
