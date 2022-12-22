@@ -4,6 +4,16 @@ import config as CFG
 import numpy as np
 
 
+def rotate_img(image, angle):
+    rows, cols, _ = image.shape
+    center = (cols/2, rows/2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated_img = cv2.warpAffine(image, M, (cols, rows), borderValue=(255, 255, 255))
+
+    #cv2.imwrite("rotated.jpg", rotated_img)
+    return rotated_img
+
+
 def nms(dets, thresh, max_result):
     '''
     :param dets:
@@ -54,7 +64,7 @@ def nms(dets, thresh, max_result):
 
 
 def pattern_matcher(img_path, temp_path):
-    match_thresh = 0.1    # 用于pattern match
+    match_thresh = 0.05    # 用于pattern match
     overlap_thresh = 0.3  # 用于nms
     max_patterns = 6      # 最多有多少个pattern
 
@@ -93,23 +103,31 @@ def pattern_matcher(img_path, temp_path):
         conf = result[i[1]][i[0]]
         all_rects.append([i[0], i[1], i[0]+tW, i[1]+tH, conf])
 
-    nms_rect = nms(all_rects, overlap_thresh, max_patterns)
+    nms_rect = []
+    if len(all_rects)>0:
+        nms_rect = nms(all_rects, overlap_thresh, max_patterns)
+    else:
+        print("no match patterns found")
 
     return CFG.RESULT_OK, msg, nms_rect
 
 
 def test_matcher():
-    image_path = "testimg/temp_matcher/img2.jpg"
-    temp_path = "testimg/temp_matcher/temp2.jpg"
+    image_path = "testimg/temp_matcher/img3.jpg"
+    temp_path = "testimg/temp_matcher/temp3_rotated.jpg"
     image = cv2.imread(image_path)
     _, _, res = pattern_matcher(image_path, temp_path)
+    if res is None:
+        print("no pattern")
+        return
 
     for r in res:
-        cv2.rectangle(image, (r[0], r[1]), (r[2], r[3]), 255, 1)
+        cv2.rectangle(image, (r[0], r[1]), (r[2], r[3]), (0, 0, 255), 3)
 
     # draw a bounding box around the detected result and display the image
     # cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
     cv2.imshow("Image", image)
+    cv2.imwrite("match_result.jpg", image)
     cv2.waitKey(0)
 
 

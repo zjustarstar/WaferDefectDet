@@ -11,7 +11,7 @@ import cell_abnormal_detection as abd
 import cross_position_checker as cpc
 
 
-def do_by_commandID(id):
+def do_by_commandID(id, img_filepath):
     logger = logging.getLogger(CFG.LOG_NAME)
     logger.info("do_by_commandID")
 
@@ -35,7 +35,7 @@ def do_by_commandID(id):
         img_path = "testimg/temp_matcher/img1.jpg"
         temp_path = "testimg/temp_matcher/temp1.jpg"
         rslt, msg, pattern_rects = pm.pattern_matcher(img_path, temp_path)
-        json_data = {"rslt": rslt, "ErrMsg": msg, "ImagePath": img_path, "PatternRects": pattern_rects}
+        json_data = {"rslt": rslt, "ErrMsg": msg, "ImagePath": img_filepath, "PatternRects": pattern_rects}
     # 位偏检测
     elif id == 7:
         img_path = "testimg/cross_locate/b1.png"

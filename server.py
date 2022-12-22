@@ -1,7 +1,9 @@
 from flask import Flask, request, json
 import logging
 import config as CFG
+import datetime
 import cv2
+import os
 
 # 相机模块
 import camera_op as Camera
@@ -16,7 +18,6 @@ def init_camera():
     # 打开设备
     if not camera.open_device():
         camera.close_device()
-        camera.exit(0)
     return camera
 
 
@@ -58,14 +59,17 @@ def post():
             return ""
 
         # 获取图像. 独立线程?
-        # frame = camera.grab_image()
-        # if frame is not None:
-        #     cv2.imwrite("frame.jpg", frame)
-        # else:
-        #     json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
-        #     return json.dumps(json_result)
+        frame = camera.grab_image()
+        filepath = os.getcwd()
+        strtime = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")[:-5]
+        if frame is not None:
+            filepath = filepath+ "\\frame.jpg"
+            cv2.imwrite(filepath, frame)
+        else:
+            json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
+            return json.dumps(json_result)
 
-        json_result = mp.do_by_commandID(command_id)
+        json_result = mp.do_by_commandID(command_id, filepath)
         print(json_result)
         return json.dumps(json_result)
 
@@ -73,6 +77,7 @@ def post():
 if __name__ == '__main__':
     # 运行本项目，host=0.0.0.0可以让其他电脑也能访问到该网站，port指定访问的端口。
     # 默认的host是127.0.0.1，port为8888
+
     logger = init_log()
-    # camera = init_camera()
+    camera = init_camera()
     app.run(host='0.0.0.0', port=8888)
