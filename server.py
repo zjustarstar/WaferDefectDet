@@ -60,10 +60,10 @@ def post():
 
         # 获取图像. 独立线程?
         frame = camera.grab_image()
-        filepath = os.getcwd()
-        strtime = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S")[:-5]
+        filedir = os.getcwd()
         if frame is not None:
-            filepath = filepath+ "\\frame.jpg"
+            strtime = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S%f")[:-5] + ".jpg"
+            filepath = filedir + "\\" + strtime
             cv2.imwrite(filepath, frame)
         else:
             json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
