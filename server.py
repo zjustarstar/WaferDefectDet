@@ -63,13 +63,13 @@ def post():
         filedir = os.getcwd()
         if frame is not None:
             strtime = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S%f")[:-5] + ".jpg"
-            filepath = filedir + "\\" + strtime
-            cv2.imwrite(filepath, frame)
+            img_filepath = filedir + "\\" + strtime
+            cv2.imwrite(img_filepath, frame)
         else:
             json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
             return json.dumps(json_result)
 
-        json_result = mp.do_by_commandID(command_id, filepath)
+        json_result = mp.do_by_commandID(command_id, img_filepath)
         print(json_result)
         return json.dumps(json_result)
 

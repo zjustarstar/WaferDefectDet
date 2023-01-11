@@ -1,17 +1,7 @@
-import numpy as np
 import cv2
 import config as CFG
 import numpy as np
-
-
-def rotate_img(image, angle):
-    rows, cols, _ = image.shape
-    center = (cols/2, rows/2)
-    M = cv2.getRotationMatrix2D(center, angle, 1.0)
-    rotated_img = cv2.warpAffine(image, M, (cols, rows), borderValue=(255, 255, 255))
-
-    #cv2.imwrite("rotated.jpg", rotated_img)
-    return rotated_img
+import pattern_pos_correction as ppc
 
 
 def nms(dets, thresh, max_result):
@@ -63,60 +53,93 @@ def nms(dets, thresh, max_result):
     return ret_rect
 
 
-def pattern_matcher(img_path, temp_path):
+def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH):
+    '''
+    :param img_path: 当前抓拍的图像的路径
+    :param temp_path: 模板的路径
+    :param CurPos: 当前点位
+    :param TotalPos: 总的点位：可选的点位方案是1,4,5,9等
+    :param CellW: 要返回的cell的大小
+    :param CellH:
+    :return: 要返回当前匹配到的cell pattern的左上角坐标，以及倾斜角度，矫正后的cell 图像路径
+    '''
     match_thresh = 0.05    # 用于pattern match
-    overlap_thresh = 0.3  # 用于nms
-    max_patterns = 6      # 最多有多少个pattern
+    overlap_thresh = 0.3   # 用于nms
+    max_patterns = 6       # 最多有多少个pattern
+    resize_scale = 4       # 用于匹配时的缩放比例
 
     msg = "OK"
     template = cv2.imread(temp_path)
     if template is None:
         msg = "fail to load template image"
-        return CFG.RESULT_FAIL, msg, []
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, ""
+    template = cv2.resize(template, (int(template.shape[1] / resize_scale), int(template.shape[0] / resize_scale)))
     template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
     template = cv2.Canny(template_gray, 100, 50)
     (tH, tW) = template.shape[:2]
 
-    # load the image, convert it to grayscale, and initialize the
-    # bookkeeping variable to keep track of the matched region
-    image = cv2.imread(img_path)
-    if image is None:
+    ori_frame = cv2.imread(img_path)
+    if ori_frame is None:
         msg = "fail to load image"
-        return CFG.RESULT_FAIL, msg, []
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, ""
+
+    # 可能的倾斜矫正
+    rslt, msg, final_angle, rotated_frame = ppc.pos_correction(img_path)
+    if rotated_frame is None:
+        return rslt, msg, 0, 0, 0, ""
+    # 基于旋转后的图像进行后续操作
+    elif final_angle != 0:
+        frame = rotated_frame
+        frame = cv2.resize(frame, (int(frame.shape[1] / resize_scale), int(frame.shape[0] / resize_scale)))
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     # detect edges in the resized, grayscale image and apply template
     # matching to find the template in the image
     edged_img = cv2.Canny(gray, 100, 50)
     result = cv2.matchTemplate(edged_img, template, cv2.TM_CCOEFF_NORMED)
 
-    # 找到最佳和最差匹配点
-    # (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
-    # (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
+    # 选择最佳匹配位置
+    (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
+    (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
     # res_rects = [[startX, startY, startX+tW, startY+tH]]
+    startX, startY = startX * resize_scale, startY * resize_scale
+
+    # 保存cell区域
+    roi_img = rotated_frame[startY:startY+CellH, startX:startX+CellW]
+    roi_path = "cell.jpg"
+    cv2.imwrite(roi_path, roi_img)
+    return CFG.RESULT_OK, msg, startX, startY, final_angle, roi_path
+
     #print(minVal, maxVal, minLoc, maxLoc)
+    # # 总点位只有1，可能有多个pattern
+    # elif TotalPos == 1:
+    #     # 查找所有匹配值中大于阈值的点;
+    #     all_rects = []
+    #     loc = np.where(result >= match_thresh)
+    #     for i in zip(*loc[::-1]):
+    #         conf = result[i[1]][i[0]]
+    #         all_rects.append([i[0], i[1], i[0]+tW, i[1]+tH, conf])
+    #
+    #     nms_rect = []
+    #     if len(all_rects)>0:
+    #         nms_rect = nms(all_rects, overlap_thresh, max_patterns)
+    #     else:
+    #         print("no match patterns found")
 
-    # 查找所有匹配值中大于阈值的点;
-    all_rects = []
-    loc = np.where(result >= match_thresh)
-    for i in zip(*loc[::-1]):
-        conf = result[i[1]][i[0]]
-        all_rects.append([i[0], i[1], i[0]+tW, i[1]+tH, conf])
-
-    nms_rect = []
-    if len(all_rects)>0:
-        nms_rect = nms(all_rects, overlap_thresh, max_patterns)
-    else:
-        print("no match patterns found")
-
-    return CFG.RESULT_OK, msg, nms_rect
+    # return CFG.RESULT_OK, msg, nms_rect
 
 
 def test_matcher():
     image_path = "testimg/temp_matcher/img3.jpg"
-    temp_path = "testimg/temp_matcher/temp3_rotated.jpg"
+    temp_path = "testimg/temp_matcher/temp3.jpg"
+
     image = cv2.imread(image_path)
-    _, _, res = pattern_matcher(image_path, temp_path)
+    CellH, CellW = 1000, 1000
+    _, _, startX, startY, angle, roi_path = pattern_matcher(image_path, temp_path, 0, 4, CellW, CellH)
+    print("startX={}, starY={}, Angle={}".format(startX, startY, angle))
+
+    res = [[startX, startY, startX + CellW, startY + CellH]]
     if res is None:
         print("no pattern")
         return
@@ -124,8 +147,8 @@ def test_matcher():
     for r in res:
         cv2.rectangle(image, (r[0], r[1]), (r[2], r[3]), (0, 0, 255), 3)
 
-    # draw a bounding box around the detected result and display the image
-    # cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
+    scale = 4
+    image = cv2.resize(image, (int(image.shape[1] / scale), int(image.shape[0] / scale)))
     cv2.imshow("Image", image)
     cv2.imwrite("match_result.jpg", image)
     cv2.waitKey(0)

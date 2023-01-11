@@ -121,6 +121,9 @@ class xscCameraOperation(object):
         self.m_isgrabbing = False
 
     def grab_image(self):
+        if not self.m_isopen:
+            self.open_device()
+
         if not self.start_grabbing():
             self.close_device()
             return None
