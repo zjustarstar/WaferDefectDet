@@ -1,4 +1,3 @@
-import cv2
 import logging
 
 # 各个算法模块
@@ -12,11 +11,12 @@ import pattern_pos_correction as ppc
 
 
 # 只需要一个commandID作为参数;
-def do_by_commandID(id, img_filepath):
+def do_by_commandID(id, img_filepath, request):
     '''
     根据输入的命令进行相应的动作
     :param id: 命令id
     :param img_filepath: 抓拍到的图像的全路径
+    :param request:对方发过来的请求，以json格式封装，带有各种参数
     :return:
     '''
     logger = logging.getLogger(CFG.LOG_NAME)
@@ -41,16 +41,24 @@ def do_by_commandID(id, img_filepath):
                      "isDefect": is_defect, "DefectType": defect_type}
     # PP_GetCellPattern, 获取pattern
     elif id == 6:
+        # CurPos = request.json.get("PartCellNo")
+        # TotalPos = request.json.get("PartCellCount")
+        # temp_path = request.json.get("TemplatePath")
+        # CellW = request.json.get("PartCellWidth")
+        # CellH = request.json.get("PartCellHeight")
+        # print(CurPos,TotalPos,temp_path,CellW,CellH)
+
         img_path = "testimg/temp_matcher/img1.jpg"
         temp_path = "testimg/temp_matcher/temp1.jpg"
         CurPos = 0    # 当前点位
         TotalPos = 4  # 总的点位.如果大于1，只返回一个cell pattern
         CellW, CellH = 100, 100 # 要裁剪返回的图像的大小
+
         rslt, msg, startX, startY, angle, cell_img_path = pm.pattern_matcher(img_path, temp_path,
                                                                             CurPos, TotalPos,
                                                                             CellW, CellH)
         json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
-                     "CellStartY":startY, "Angle":angle, "CellImgPath": cell_img_path}
+                     "CellStartY": startY, "Angle": angle, "CellImgPath": cell_img_path}
     # 位偏检测
     elif id == 7:
         img_path = "testimg/cross_locate/b1.png"
@@ -65,7 +73,7 @@ def do_by_commandID(id, img_filepath):
     elif id == 9:
         img_path = "testimg/defect/cc.png"
         rslt, msg, angle, rotateImgPath = ppc.pos_correction_withsave(img_path)
-        json_data = {"rslt": rslt, "ErrMsg": msg, "Angle":angle, "RotatedImagePath": rotateImgPath}
+        json_data = {"rslt": rslt, "ErrMsg": msg, "Angle": angle, "RotatedImagePath": rotateImgPath}
 
     return json_data
 

@@ -52,6 +52,8 @@ def post():
             type(request) == type(None), type(request.data) == type(None))
         return ""
 
+    print(request.data)
+
     if request.method == "POST":
         command_id = request.json.get(CFG.COMMAND_ID)
         logger.info("command_id:{0}".format(command_id))
@@ -69,7 +71,7 @@ def post():
             json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
             return json.dumps(json_result)
 
-        json_result = mp.do_by_commandID(command_id, img_filepath)
+        json_result = mp.do_by_commandID(command_id, img_filepath, request)
         print(json_result)
         return json.dumps(json_result)
 

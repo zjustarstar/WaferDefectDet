@@ -96,7 +96,10 @@ def pos_correction(img_path, debug=False):
     final_angle = distict_angles[ind] / nscale
 
     # 保存原始大小的旋转后的图
-    rotated_img = rotate_img(ori_src, final_angle)
+    if final_angle != 0:
+        rotated_img = rotate_img(ori_src, final_angle)
+    else:
+        rotated_img = ori_src
     if debug:
         print("distinct angles:")
         print(distict_angles)

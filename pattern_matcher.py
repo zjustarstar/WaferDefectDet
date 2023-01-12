@@ -87,10 +87,10 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH):
     rslt, msg, final_angle, rotated_frame = ppc.pos_correction(img_path)
     if rotated_frame is None:
         return rslt, msg, 0, 0, 0, ""
+
     # 基于旋转后的图像进行后续操作
-    elif final_angle != 0:
-        frame = rotated_frame
-        frame = cv2.resize(frame, (int(frame.shape[1] / resize_scale), int(frame.shape[0] / resize_scale)))
+    frame = rotated_frame
+    frame = cv2.resize(frame, (int(frame.shape[1] / resize_scale), int(frame.shape[0] / resize_scale)))
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -131,8 +131,8 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH):
 
 
 def test_matcher():
-    image_path = "testimg/temp_matcher/img3.jpg"
-    temp_path = "testimg/temp_matcher/temp3.jpg"
+    image_path = "testimg/temp_matcher/img1.jpg"
+    temp_path = "testimg/temp_matcher/temp1.jpg"
 
     image = cv2.imread(image_path)
     CellH, CellW = 1000, 1000
