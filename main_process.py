@@ -25,7 +25,7 @@ def do_by_commandID(id, img_filepath, request):
     # PP_GetRectileID, 版号读取
     if id == 3:
         img_path = "testimg/ocr/ng.jpg"
-        rslt, msg, boxes, txts, scores = ocr.get_rectileID(img_path)
+        rslt, msg, boxes, txts, scores = ocr.get_rectileID(img_filepath)
         json_data = {"rslt":rslt, "ErrMsg":msg, "ImagePath":img_filepath, "rectID":txts, "rectLoc":boxes}
     # GetReferanceWidth, 获取参考宽度
     elif id == 4:
@@ -41,22 +41,23 @@ def do_by_commandID(id, img_filepath, request):
                      "isDefect": is_defect, "DefectType": defect_type}
     # PP_GetCellPattern, 获取pattern
     elif id == 6:
-        # CurPos = request.json.get("PartCellNo")
-        # TotalPos = request.json.get("PartCellCount")
-        # temp_path = request.json.get("TemplatePath")
-        # CellW = request.json.get("PartCellWidth")
-        # CellH = request.json.get("PartCellHeight")
-        # print(CurPos,TotalPos,temp_path,CellW,CellH)
+        CurPos = request.json.get("PartCellNo")
+        TotalPos = request.json.get("PartCellCount")
+        temp_path = request.json.get("TemplatePath")
+        CellW = request.json.get("PartCellWidth")
+        CellH = request.json.get("PartCellHeight")
+        isDetectProcess = request.json.get("isDetectionProcess")
+        print(CurPos,TotalPos,temp_path,CellW,CellH)
 
         img_path = "testimg/temp_matcher/img1.jpg"
-        temp_path = "testimg/temp_matcher/temp1.jpg"
-        CurPos = 0    # 当前点位
-        TotalPos = 4  # 总的点位.如果大于1，只返回一个cell pattern
-        CellW, CellH = 100, 100 # 要裁剪返回的图像的大小
+        # temp_path = "testimg/temp_matcher/temp1.jpg"
+        # CurPos = 0    # 当前点位
+        # TotalPos = 4  # 总的点位.如果大于1，只返回一个cell pattern
+        # CellW, CellH = 100, 100 # 要裁剪返回的图像的大小
 
-        rslt, msg, startX, startY, angle, cell_img_path = pm.pattern_matcher(img_path, temp_path,
+        rslt, msg, startX, startY, angle, cell_img_path = pm.pattern_matcher(img_filepath, temp_path,
                                                                             CurPos, TotalPos,
-                                                                            CellW, CellH)
+                                                                            CellW, CellH, isDetectProcess)
         json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
                      "CellStartY": startY, "Angle": angle, "CellImgPath": cell_img_path}
     # 位偏检测
@@ -72,7 +73,7 @@ def do_by_commandID(id, img_filepath, request):
     # 确认cell图像的角度，并将矫正后的图像的地址返回
     elif id == 9:
         img_path = "testimg/defect/cc.png"
-        rslt, msg, angle, rotateImgPath = ppc.pos_correction_withsave(img_path)
+        rslt, msg, angle, rotateImgPath = ppc.pos_correction_withsave(img_filepath)
         json_data = {"rslt": rslt, "ErrMsg": msg, "Angle": angle, "RotatedImagePath": rotateImgPath}
 
     return json_data

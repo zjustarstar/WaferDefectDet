@@ -65,6 +65,9 @@ def pos_correction(img_path, debug=False):
     # maxLineGap: 能被认为在一条直线上的两点的最大距离
     lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
                             minLineLength=100, maxLineGap=30)
+    if lines is None:
+        msg = "fail to find lines in image"
+        return CFG.RESULT_FAIL, msg, 0, None
 
     all_angles = []
     for i in range(len(lines)):
@@ -128,7 +131,7 @@ def pos_correction_withsave(img_path, debug=False):
 
 
 def test_posCorrection():
-    image_path = "testimg/defect/cc.png"
+    image_path = "testimg/test.jpg"
     pos_correction_withsave(image_path, debug=True)
 
 

@@ -135,6 +135,34 @@ class xscCameraOperation(object):
         return image
 
 
+    def setCamParams(self):
+        cam = self.m_camera
+        msg = "OK"
+
+        # ch:设置自动曝光为连续
+        ret = cam.MV_CC_SetEnumValue("ExposureAuto", MV_EXPOSURE_AUTO_MODE_CONTINUOUS)
+        if ret != 0:
+            print("设置自动曝光为连续 失败! ret[0x%x]" % ret)
+            msg = "设置自动曝光为连续 失败!"
+            return ret, msg
+
+        # ch:设置自动增益为连续
+        ret = cam.MV_CC_SetEnumValue("GainAuto", MV_GAIN_MODE_CONTINUOUS)
+        if ret != 0:
+            print("设置自动增益为连续 失败! ret[0x%x]" % ret)
+            msg = "设置自动增益为连续 失败!"
+            return ret, msg
+
+        # ch:设置亮度为100
+        ret = cam.MV_CC_SetIntValue("Brightness", 100)
+        if ret != 0:
+            print("设置亮度为100 失败! ret[0x%x]" % ret)
+            msg = "设置亮度失败"
+            return ret, msg
+
+        return ret, msg
+
+
 if __name__ == '__main__':
     co = CameraOperation()
     # 打开设备

@@ -53,7 +53,7 @@ def nms(dets, thresh, max_result):
     return ret_rect
 
 
-def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH):
+def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectProcess):
     '''
     :param img_path: 当前抓拍的图像的路径
     :param temp_path: 模板的路径
@@ -61,12 +61,17 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH):
     :param TotalPos: 总的点位：可选的点位方案是1,4,5,9等
     :param CellW: 要返回的cell的大小
     :param CellH:
+    :param isDectProcess: 是检测流程还是训练流程。流程不同，矫正后的图像的保存路径不同
     :return: 要返回当前匹配到的cell pattern的左上角坐标，以及倾斜角度，矫正后的cell 图像路径
     '''
     match_thresh = 0.05    # 用于pattern match
     overlap_thresh = 0.3   # 用于nms
     max_patterns = 6       # 最多有多少个pattern
     resize_scale = 4       # 用于匹配时的缩放比例
+
+    if CurPos < 0 or CellH < 100 or CellW < 100:
+        msg = "错误的cell匹配参数"
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, ""
 
     msg = "OK"
     template = cv2.imread(temp_path)
@@ -107,7 +112,10 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH):
 
     # 保存cell区域
     roi_img = rotated_frame[startY:startY+CellH, startX:startX+CellW]
-    roi_path = "cell.jpg"
+    if isDectProcess:
+        roi_path = "cell.jpg"
+    else:
+        roi_path = "temp\\cell.jpg"
     cv2.imwrite(roi_path, roi_img)
     return CFG.RESULT_OK, msg, startX, startY, final_angle, roi_path
 
