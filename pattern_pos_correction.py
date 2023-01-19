@@ -2,6 +2,8 @@ import cv2
 import math
 import config as CFG
 import numpy as np
+import  os
+import config as CFG
 
 SHOW_LINE = False
 
@@ -125,6 +127,11 @@ def pos_correction_withsave(img_path, debug=False):
         rotated_img_path = ''
     else:
         rotated_img_path = img_path.split('.')[0] + "_rotate." + img_path.split('.')[1]
+
+        # 最终保存在共享目录
+        res_path, res_file = os.path.split(rotated_img_path)
+        rotated_img_path = CFG.SHARE_DIR + "temp\\" + res_file
+
         cv2.imwrite(rotated_img_path, rotated_img)
 
     return rslt, msg, final_angle, rotated_img_path

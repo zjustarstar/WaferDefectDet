@@ -1,5 +1,5 @@
 import logging
-
+import os
 # 各个算法模块
 import config as CFG
 import ocr
@@ -8,6 +8,8 @@ import ref_width_checker as rwc
 import cell_abnormal_detection as abd
 import cross_position_checker as cpc
 import pattern_pos_correction as ppc
+
+import wcf_client as wcfClient
 
 
 # 只需要一个commandID作为参数;
@@ -57,7 +59,7 @@ def do_by_commandID(id, img_filepath, request):
 
         rslt, msg, startX, startY, angle, cell_img_path = pm.pattern_matcher(img_filepath, temp_path,
                                                                             CurPos, TotalPos,
-                                                                            CellW, CellH, isDetectProcess)
+                                                                            CellW, CellH)
         json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
                      "CellStartY": startY, "Angle": angle, "CellImgPath": cell_img_path}
     # 位偏检测
@@ -74,9 +76,19 @@ def do_by_commandID(id, img_filepath, request):
     elif id == 9:
         img_path = "testimg/defect/cc.png"
         rslt, msg, angle, rotateImgPath = ppc.pos_correction_withsave(img_filepath)
+
         json_data = {"rslt": rslt, "ErrMsg": msg, "Angle": angle, "RotatedImagePath": rotateImgPath}
+    # 调节相机的增益和曝光
+    elif id == 10:
+        rslt = CFG.RESULT_OK
+        ExposurePow = request.json.get("PartCellWidth")
+        GainPow = request.json.get("PartCellHeight")
+        res_path = wcfClient.SetCameraParams(ExposurePow, GainPow)
+
+        json_data = {"rslt": rslt, "ErrMsg": "OK", "Path": res_path}
 
     return json_data
+
 
 
 if __name__ == '__main__':

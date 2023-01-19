@@ -1,9 +1,10 @@
 from flask import Flask, request, json
 import logging
 import config as CFG
-import datetime
-import cv2
 import os
+import json
+import wcf_client as wcfClient
+
 
 # 相机模块
 import camera_op as Camera
@@ -60,18 +61,26 @@ def post():
         if command_id is None:
             return ""
 
+        print(request.data)
+
         # 获取图像. 独立线程?
-        frame = camera.grab_image()
-        filedir = os.getcwd()
-        if frame is not None:
-            strtime = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S%f")[:-5] + ".jpg"
-            img_filepath = filedir + "\\" + strtime
-            cv2.imwrite(img_filepath, frame)
-        else:
-            json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
+        # frame = camera.grab_image()
+        imgPath = wcfClient.GetPicture()
+        if not os.path.exists(imgPath):
+            json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "picture path not exist"}
             return json.dumps(json_result)
 
-        json_result = mp.do_by_commandID(command_id, img_filepath, request)
+        # filedir = os.getcwd()
+        # filedir = "e:\\camera_data\\temp"
+        # if imgPath is not None:
+        #     strtime = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S%f")[:-5] + ".jpg"
+        #     img_filepath = filedir + "\\" + strtime
+        #     cv2.imwrite(img_filepath, frame)
+        # else:
+        #     json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
+        #     return json.dumps(json_result)
+
+        json_result = mp.do_by_commandID(command_id, imgPath, request)
         print(json_result)
         return json.dumps(json_result)
 
@@ -81,5 +90,5 @@ if __name__ == '__main__':
     # 默认的host是127.0.0.1，port为8888
 
     logger = init_log()
-    camera = init_camera()
+    #camera = init_camera()
     app.run(host='0.0.0.0', port=8888)
