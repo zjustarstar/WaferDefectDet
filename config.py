@@ -2,6 +2,7 @@
 # 返回结果
 RESULT_OK = 0
 RESULT_FAIL = -1
+RESULT_FAIL_NO_MATCHBLOCK = -2    # 找不到匹配的区域
 
 # 缺陷检测结果
 AD_GOOD = False

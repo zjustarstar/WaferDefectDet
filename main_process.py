@@ -49,9 +49,9 @@ def do_by_commandID(id, img_filepath, request):
         CellW = request.json.get("PartCellWidth")
         CellH = request.json.get("PartCellHeight")
         isDetectProcess = request.json.get("isDetectionProcess")
-        print(CurPos,TotalPos,temp_path,CellW,CellH)
+        # print(CurPos,TotalPos,temp_path,CellW,CellH)
 
-        img_path = "testimg/temp_matcher/img1.jpg"
+        # img_path = "testimg/temp_matcher/img1.jpg"
         # temp_path = "testimg/temp_matcher/temp1.jpg"
         # CurPos = 0    # 当前点位
         # TotalPos = 4  # 总的点位.如果大于1，只返回一个cell pattern
@@ -59,7 +59,7 @@ def do_by_commandID(id, img_filepath, request):
 
         rslt, msg, startX, startY, angle, cell_img_path = pm.pattern_matcher(img_filepath, temp_path,
                                                                             CurPos, TotalPos,
-                                                                            CellW, CellH)
+                                                                            CellW, CellH, isDetectProcess)
         json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
                      "CellStartY": startY, "Angle": angle, "CellImgPath": cell_img_path}
     # 位偏检测
@@ -88,7 +88,6 @@ def do_by_commandID(id, img_filepath, request):
         json_data = {"rslt": rslt, "ErrMsg": "OK", "Path": res_path}
 
     return json_data
-
 
 
 if __name__ == '__main__':

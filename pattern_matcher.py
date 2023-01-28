@@ -1,5 +1,8 @@
+import datetime
+
 import cv2
 import config as CFG
+import logging
 import numpy as np
 import pattern_pos_correction as ppc
 
@@ -53,7 +56,7 @@ def nms(dets, thresh, max_result):
     return ret_rect
 
 
-def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectProcess):
+def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectProcess=True):
     '''
     :param img_path: 当前抓拍的图像的路径
     :param temp_path: 模板的路径
@@ -64,7 +67,9 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectP
     :param isDectProcess: 是检测流程还是训练流程。流程不同，矫正后的图像的保存路径不同
     :return: 要返回当前匹配到的cell pattern的左上角坐标，以及倾斜角度，矫正后的cell 图像路径
     '''
-    match_thresh = 0.05    # 用于pattern match
+
+    logger = logging.getLogger(CFG.LOG_NAME)
+    match_thresh = 0.4    # 用于pattern match
     overlap_thresh = 0.3   # 用于nms
     max_patterns = 6       # 最多有多少个pattern
     resize_scale = 4       # 用于匹配时的缩放比例
@@ -74,6 +79,12 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectP
         return CFG.RESULT_FAIL, msg, 0, 0, 0, ""
 
     msg = "OK"
+    if temp_path is None:
+        msg = "template path is None"
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, ""
+    else:
+        temp_path = CFG.SHARE_DIR + temp_path
+
     template = cv2.imread(temp_path)
     if template is None:
         msg = "fail to load template image"
@@ -102,10 +113,17 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectP
     # detect edges in the resized, grayscale image and apply template
     # matching to find the template in the image
     edged_img = cv2.Canny(gray, 100, 50)
-    result = cv2.matchTemplate(edged_img, template, cv2.TM_CCOEFF_NORMED)
+    result = cv2.matchTemplate(edged_img, template, cv2.TM_CCORR_NORMED)
 
     # 选择最佳匹配位置
+    # (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
     (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
+    logger.info("pattern match minVal={0}, maxVal={1}".format(minVal, maxVal))
+
+    if maxVal < match_thresh:
+        msg = "fail to find matched block"
+        return CFG.RESULT_FAIL_NO_MATCHBLOCK, msg, 0, 0, 0, ''
+
     (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
     # res_rects = [[startX, startY, startX+tW, startY+tH]]
     startX, startY = startX * resize_scale, startY * resize_scale
@@ -113,9 +131,17 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectP
     # 保存cell区域
     roi_img = rotated_frame[startY:startY+CellH, startX:startX+CellW]
     if isDectProcess:
-        roi_path = "cell.jpg"
+        newpath = temp_path.replace('/Template/', '/Grab/')
+        # dt = datetime.datetime.now()
+        # newpath = newpath.replace('1.jpg', dt.strftime("%Y%m%d%H%M%S.jpg"))
+        roi_path = newpath
     else:
-        roi_path = "temp\\cell.jpg"
+        newpath = temp_path.replace('/Template/', '/Grab/')
+        # dt = datetime.datetime.now()
+        #
+        # newpath = newpath.replace('1.jpg', dt.strftime("%Y%m%d%H%M%S.jpg"))
+        roi_path = newpath
+
     cv2.imwrite(roi_path, roi_img)
     return CFG.RESULT_OK, msg, startX, startY, final_angle, roi_path
 
@@ -139,13 +165,13 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, isDectP
 
 
 def test_matcher():
-    image_path = "testimg/temp_matcher/img1.jpg"
-    temp_path = "testimg/temp_matcher/temp1.jpg"
+    image_path = "testimg/temp_matcher/tt.jpg"
+    temp_path = "testimg/temp_matcher/temp4.jpg"
 
     image = cv2.imread(image_path)
     CellH, CellW = 1000, 1000
-    _, _, startX, startY, angle, roi_path = pattern_matcher(image_path, temp_path, 0, 4, CellW, CellH)
-    print("startX={}, starY={}, Angle={}".format(startX, startY, angle))
+    _, msg, startX, startY, angle, roi_path = pattern_matcher(image_path, temp_path, 0, 4, CellW, CellH)
+    print("msg={}, startX={}, starY={}, Angle={}".format(msg, startX, startY, angle))
 
     res = [[startX, startY, startX + CellW, startY + CellH]]
     if res is None:

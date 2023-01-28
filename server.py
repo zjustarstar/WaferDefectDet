@@ -57,11 +57,9 @@ def post():
 
     if request.method == "POST":
         command_id = request.json.get(CFG.COMMAND_ID)
-        logger.info("command_id:{0}".format(command_id))
+        logger.info("request:{0}".format(request.data))
         if command_id is None:
             return ""
-
-        print(request.data)
 
         # 获取图像. 独立线程?
         # frame = camera.grab_image()
@@ -81,7 +79,8 @@ def post():
         #     return json.dumps(json_result)
 
         json_result = mp.do_by_commandID(command_id, imgPath, request)
-        print(json_result)
+        logger.info("result:{0}\n".format(json_result))
+
         return json.dumps(json_result)
 
 
