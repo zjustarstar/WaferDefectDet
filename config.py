@@ -16,4 +16,4 @@ SHARE_DIR = "e:\\camera_data\\"   # 共享文件夹路径
 WCF_SERVER_ADDRESS = 'http://localhost:8733//WCFEquipControlService?singleWsdl'   #wcf服务地址;
 
 #算法阈值
-ALG_MATCH_THRESHOLD = 0.4        # 模板匹配的阈值
+ALG_MATCH_THRESHOLD = 0.9        # 模板匹配的阈值

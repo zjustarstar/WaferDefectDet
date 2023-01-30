@@ -48,7 +48,7 @@ def pos_correction(img_path, debug=False):
 
     t2 = 120
     while True:
-        src_edge = cv2.Canny(src_gray, t2, 50)
+        src_edge = cv2.Canny(src_gray, t2, 200)
         lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
                                 minLineLength=100, maxLineGap=30)
         # 如果没有线,可能是黑屏?
@@ -151,14 +151,13 @@ def pos_correction_withsave(img_path, debug=False):
         # 最终保存在共享目录
         res_path, res_file = os.path.split(rotated_img_path)
         rotated_img_path = CFG.SHARE_DIR + "temp\\" + res_file
-
         cv2.imwrite(rotated_img_path, rotated_img)
 
     return rslt, msg, final_angle, rotated_img_path
 
 
 def test_posCorrection():
-    image_path = "testimg/pos_corr/1.jpg"
+    image_path = "testimg/temp_matcher/dd/23.jpg"
     pos_correction_withsave(image_path, debug=True)
 
 
