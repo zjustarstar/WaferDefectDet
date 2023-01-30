@@ -49,6 +49,8 @@ def do_by_commandID(id, img_filepath, request):
         CellW = request.json.get("PartCellWidth")
         CellH = request.json.get("PartCellHeight")
         isDetectProcess = request.json.get("isDetectionProcess")
+
+
         # print(CurPos,TotalPos,temp_path,CellW,CellH)
 
         # img_path = "testimg/temp_matcher/img1.jpg"
@@ -56,12 +58,18 @@ def do_by_commandID(id, img_filepath, request):
         # CurPos = 0    # 当前点位
         # TotalPos = 4  # 总的点位.如果大于1，只返回一个cell pattern
         # CellW, CellH = 100, 100 # 要裁剪返回的图像的大小
-
-        rslt, msg, startX, startY, angle, cell_img_path = pm.pattern_matcher(img_filepath, temp_path,
-                                                                            CurPos, TotalPos,
-                                                                            CellW, CellH, isDetectProcess)
-        json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
-                     "CellStartY": startY, "Angle": angle, "CellImgPath": cell_img_path}
+        if temp_path is None:
+            msg = "template path is None"
+            json_data = {"rslt": CFG.RESULT_FAIL, "ErrMsg": msg, "CellStartX": 0,
+                         "CellStartY": 0, "Angle": 0, "CellImgPath": ''}
+        else:
+            temp_path = CFG.SHARE_DIR + temp_path
+            rslt, msg, startX, startY, maxVal, angle, cell_img_path = pm.pattern_matcher(img_filepath, temp_path,
+                                                                                CurPos, TotalPos,
+                                                                                CellW, CellH, True, isDetectProcess)
+            json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
+                         "CellStartY": startY, "MaxMatchVal": maxVal,
+                         "Angle": angle, "CellImgPath": cell_img_path}
     # 位偏检测
     elif id == 7:
         img_path = "testimg/cross_locate/b1.png"
@@ -81,8 +89,9 @@ def do_by_commandID(id, img_filepath, request):
     # 调节相机的增益和曝光
     elif id == 10:
         rslt = CFG.RESULT_OK
-        ExposurePow = request.json.get("PartCellWidth")
-        GainPow = request.json.get("PartCellHeight")
+        ExposurePow = request.json.get("Exposure")
+        GainPow = request.json.get("Gain")
+        CFG.ALG_MATCH_THRESHOLD = request.json.get("Threshold")
         res_path = wcfClient.SetCameraParams(ExposurePow, GainPow)
 
         json_data = {"rslt": rslt, "ErrMsg": "OK", "Path": res_path}
