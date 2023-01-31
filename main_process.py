@@ -50,9 +50,6 @@ def do_by_commandID(id, img_filepath, request):
         CellH = request.json.get("PartCellHeight")
         isDetectProcess = request.json.get("isDetectionProcess")
 
-
-        # print(CurPos,TotalPos,temp_path,CellW,CellH)
-
         # img_path = "testimg/temp_matcher/img1.jpg"
         # temp_path = "testimg/temp_matcher/temp1.jpg"
         # CurPos = 0    # 当前点位
@@ -64,12 +61,12 @@ def do_by_commandID(id, img_filepath, request):
                          "CellStartY": 0, "Angle": 0, "CellImgPath": ''}
         else:
             temp_path = CFG.SHARE_DIR + temp_path
-            rslt, msg, startX, startY, maxVal, angle, cell_img_path = pm.pattern_matcher(img_filepath, temp_path,
+            rslt, msg, startX, startY, maxVal, angle, cell_img_path, isDefect = pm.pattern_matcher(img_filepath, temp_path,
                                                                                 CurPos, TotalPos,
                                                                                 CellW, CellH, True, isDetectProcess)
             json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
                          "CellStartY": startY, "MaxMatchVal": maxVal,
-                         "Angle": angle, "CellImgPath": cell_img_path}
+                         "Angle": angle, "CellImgPath": cell_img_path, "isDefect":isDefect}
     # 位偏检测
     elif id == 7:
         img_path = "testimg/cross_locate/b1.png"

@@ -1,4 +1,6 @@
 import datetime
+import random
+import time
 
 import cv2
 import config as CFG
@@ -130,13 +132,13 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
 
     if CurPos < 0 or CellH < 10 or CellW < 10:
         msg = "错误的cell匹配参数"
-        return CFG.RESULT_FAIL_WRONGPARAM, msg, 0, 0, 0, 0, ""
+        return CFG.RESULT_FAIL_WRONGPARAM, msg, 0, 0, 0, 0, "", 0
 
     msg = "OK"
     template = cv2.imread(temp_path)
     if template is None:
         msg = "fail to load template image"
-        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, ""
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, "", 0
     template = cv2.resize(template, (int(template.shape[1] / resize_scale), int(template.shape[0] / resize_scale)))
     template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
@@ -146,7 +148,7 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
     ori_frame = cv2.imread(img_path)
     if ori_frame is None:
         msg = "fail to load image"
-        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, ""
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, "", 0
 
     # 基于旋转后的图像进行后续操作
     if pos_corr:
@@ -154,7 +156,7 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
         rslt, msg, final_angle, rotated_frame = ppc.pos_correction(img_path)
         logger.info("rotated angle={}".format(final_angle))
         if rotated_frame is None:
-            return rslt, msg, 0, 0, 0, 0, ""
+            return rslt, msg, 0, 0, 0, 0, "", 0
     else:
         rotated_frame = ori_frame
         final_angle = 0
@@ -175,13 +177,12 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
     logger.info("full pattern match minVal={0}, maxVal={1}".format(minVal, maxVal))
 
     if maxVal < CFG.ALG_MATCH_THRESHOLD:
-        found, startX, startY, maxVal2 = margin_matcher(gray, template_gray)
-        logger.info("part pattern match, maxVal={}".format(maxVal2))
-        if not found:
-            msg = "fail to find matched block"
-            return CFG.RESULT_FAIL_NO_MATCHBLOCK, msg, 0, 0, 0, final_angle, ''
-        else:
-            print("find match in margin regions, maxVal={}".format(maxVal2))
+        # found, startX, startY, maxVal2 = margin_matcher(gray, template_gray)
+        # if not found:
+        msg = "fail to find matched block"
+        return CFG.RESULT_FAIL_NO_MATCHBLOCK, msg, 0, 0, 0, final_angle, '', 0
+        # else:
+        #     print("find match in margin regions, maxVal={}".format(maxVal2))
     else:
         (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
 
@@ -191,9 +192,16 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
     X = max(startX, 0)
     Y = max(startY, 0)
     roi_img = rotated_frame[Y:Y+CellH, X:X+CellW]
+
+    isDefect = 0
+    # 检测主流程
     if isDectProcess:
-        newpath = temp_path.replace('/Template/', '/Grab/')
+        date = datetime.datetime.now()
+        strFile = date.strftime("%Y%m%d_%H%M%S%f")[:-3] + ".jpg"
+        newpath = CFG.SHARE_HISTORY_DIR + strFile
+        isDefect = random.choice([0, 1])
         roi_path = newpath
+    # 训练流程
     else:
         newpath = temp_path.replace('/Template/', '/Grab/')
         roi_path = newpath
@@ -203,7 +211,7 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
         roi_path = "cell.jpg"
 
     cv2.imwrite(roi_path, roi_img)
-    return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, roi_path
+    return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, roi_path, isDefect
 
     #print(minVal, maxVal, minLoc, maxLoc)
     # # 总点位只有1，可能有多个pattern
@@ -231,8 +239,8 @@ def test_matcher():
     # 测试不进行角度矫正
     image = cv2.imread(image_path)
     CellH, CellW = 1500, 1500
-    _, msg, startX, startY, maxVal, angle, roi_path = pattern_matcher(image_path, temp_path, 0, 4,
-                                                              CellW, CellH, True)
+    _, msg, startX, startY, maxVal, angle, roi_path, isDefect = pattern_matcher(image_path, temp_path, 0, 4,
+                                                              CellW, CellH, False)
     print("msg={}, startX={}, starY={}, Angle={}".format(msg, startX, startY, angle))
 
     res = [[startX, startY, startX + CellW, startY + CellH]]

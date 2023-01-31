@@ -13,6 +13,7 @@ AD_NG = True
 LOG_NAME = "WDD_LOG"
 COMMAND_ID = "command_id"         # 表示命令编号的字符串
 SHARE_DIR = "e:\\camera_data\\"   # 共享文件夹路径
+SHARE_HISTORY_DIR = "e:\\camera_data\\history\\"   # 共享文件夹history路径
 WCF_SERVER_ADDRESS = 'http://localhost:8733//WCFEquipControlService?singleWsdl'   #wcf服务地址;
 
 #算法阈值
