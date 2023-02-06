@@ -3,6 +3,7 @@
 RESULT_OK = 0
 RESULT_FAIL = -1
 RESULT_FAIL_NO_MATCHBLOCK = -2    # 找不到匹配的区域
+RESULT_FAIL_WRONG_POSITION = -4    # 找不到匹配的区域
 RESULT_FAIL_WRONGPARAM = -3       # 不合理的参数
 
 # 缺陷检测结果

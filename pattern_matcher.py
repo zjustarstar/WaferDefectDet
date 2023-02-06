@@ -1,4 +1,5 @@
 import datetime
+import os.path
 import random
 import time
 
@@ -7,6 +8,7 @@ import config as CFG
 import logging
 import numpy as np
 import pattern_pos_correction as ppc
+import cell_abnormal_detection as cad
 
 
 def init_log():
@@ -110,35 +112,26 @@ def margin_matcher(edge_src_img, edge_temp_img):
     return found, startX, startY, max_match
 
 
-def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_corr=True, isDectProcess=True):
+# 核心模板匹配程序
+def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, anchor=[0, 0]):
     '''
-    :param img_path: 当前抓拍的图像的路径
-    :param temp_path: 模板的路径
-    :param CurPos: 当前点位
-    :param TotalPos: 总的点位：可选的点位方案是1,4,5,9等
-    :param CellW: 要返回的cell的大小
-    :param CellH:
-    :param pos_corr: 是否进行角度矫正.默认要进行角度矫正
-    :param isDectProcess: 是检测流程还是训练流程。流程不同，矫正后的图像的保存路径不同
-    :return: 要返回当前匹配到的cell pattern的左上角坐标，以及倾斜角度，矫正后的cell 图像路径
+    模板匹配核心程序
+    :param img_path: 原图
+    :param temp_path: 模板图
+    :param pos_corr: 是否对原图进行角度矫正
+    :param onlyMostSim: 是否只返回最高匹配度。如果False，则根据anchor，返回离anchor最近的点
+    :param anchor:
+    :return: CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, rotated_frame
     '''
-
-    logger = logging.getLogger(CFG.LOG_NAME)
-    overlap_thresh = 0.3   # 用于nms
-    max_patterns = 6       # 最多有多少个pattern
-    resize_scale = 6       # 用于匹配时的缩放比例
-
-    logger.info("match threshold={0}".format(CFG.ALG_MATCH_THRESHOLD))
-
-    if CurPos < 0 or CellH < 10 or CellW < 10:
-        msg = "错误的cell匹配参数"
-        return CFG.RESULT_FAIL_WRONGPARAM, msg, 0, 0, 0, 0, "", 0
+    overlap_thresh = 0.3  # 用于nms
+    max_patterns = 6  # 最多有多少个pattern
+    resize_scale = 6  # 用于匹配时的缩放比例
 
     msg = "OK"
     template = cv2.imread(temp_path)
     if template is None:
         msg = "fail to load template image"
-        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, "", 0
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, None
     template = cv2.resize(template, (int(template.shape[1] / resize_scale), int(template.shape[0] / resize_scale)))
     template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
@@ -148,7 +141,7 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
     ori_frame = cv2.imread(img_path)
     if ori_frame is None:
         msg = "fail to load image"
-        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, "", 0
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, None
 
     # 基于旋转后的图像进行后续操作
     if pos_corr:
@@ -156,7 +149,7 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
         rslt, msg, final_angle, rotated_frame = ppc.pos_correction(img_path)
         logger.info("rotated angle={}".format(final_angle))
         if rotated_frame is None:
-            return rslt, msg, 0, 0, 0, 0, "", 0
+            return rslt, msg, 0, 0, 0, 0, None
     else:
         rotated_frame = ori_frame
         final_angle = 0
@@ -164,7 +157,6 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
     frame = rotated_frame
     frame = cv2.resize(frame, (int(frame.shape[1] / resize_scale), int(frame.shape[0] / resize_scale)))
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    cv2.imshow("rotated", frame)
 
     # detect edges in the resized, grayscale image and apply template
     # edged_img = cv2.Canny(gray, 120, 200)
@@ -172,34 +164,101 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
     cv2.equalizeHist(gray, gray)
     result = cv2.matchTemplate(gray, template_gray, cv2.TM_CCORR_NORMED)
 
-    # 选择最佳匹配位置
+    # 最佳匹配位置
     (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
     logger.info("full pattern match minVal={0}, maxVal={1}".format(minVal, maxVal))
 
     if maxVal < CFG.ALG_MATCH_THRESHOLD:
-        # found, startX, startY, maxVal2 = margin_matcher(gray, template_gray)
-        # if not found:
         msg = "fail to find matched block"
-        return CFG.RESULT_FAIL_NO_MATCHBLOCK, msg, 0, 0, 0, final_angle, '', 0
-        # else:
-        #     print("find match in margin regions, maxVal={}".format(maxVal2))
+        return CFG.RESULT_FAIL_NO_MATCHBLOCK, msg, 0, 0, 0, final_angle, None
+    # 如果有符合阈值的
     else:
+        # 最高相似度的
         (startX, startY) = (int(maxLoc[0]), int(maxLoc[1]))
+        # 如果有多个pattern，则返回离anchor最近的
+        if not onlyMostSim:
+            all_rects = []
+            loc = np.where(result >= CFG.ALG_MATCH_THRESHOLD)
+            for i in zip(*loc[::-1]):
+                conf = result[i[1]][i[0]]
+                all_rects.append([i[0], i[1], i[0] + tW, i[1] + tH, conf])
 
+            nms_rect = []
+            if len(all_rects) > 0:
+                nms_rect = nms(all_rects, overlap_thresh, max_patterns)
+
+            # 找离anchor最近的
+            dist = ori_frame.shape[0] + ori_frame.shape[1]
+            for i in range(len(nms_rect)):
+                if abs(nms_rect[i][0]-anchor[0]) + abs(nms_rect[i][1]-anchor[1]) < dist:
+                    dist = abs(nms_rect[i][0]-anchor[0]) + abs(nms_rect[i][1]-anchor[1])
+                    startX, startY = nms_rect[i][0], nms_rect[i][1]
+                    maxVal = nms_rect[i][4]
+
+    # 在原图中的坐标
     startX, startY = startX * resize_scale, startY * resize_scale
+    return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, rotated_frame
+
+
+def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, CellH,
+                    pos_corr=True, isDectProcess=True):
+    '''
+    :param img_path: 当前抓拍的图像的路径
+    :param temp_path: 模板的路径
+    :param CurPos: 当前点位
+    :param TotalPos: 总的点位：可选的点位方案是1,4,5,9等
+    :param requireCut: 是否要求截图
+    :param CellW: 要返回的cell的大小
+    :param CellH:
+    :param pos_corr: 是否进行角度矫正.默认要进行角度矫正
+    :param isDectProcess: 是检测流程还是训练流程。流程不同，矫正后的图像的保存路径不同
+    :return: CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, roi_path, isDefect
+    '''
+
+    logger = logging.getLogger(CFG.LOG_NAME)
+    ori_frame = cv2.imread(img_path)
+    if ori_frame is None:
+        msg = "fail to load image"
+        return CFG.RESULT_FAIL, msg, 0, 0, 0, 0, None,0
+    (tH, tW) = ori_frame.shape[:2]
+
+    # 如果需要切割cell，则左上角作为锚点.
+    # 否则，如果只是为了查找位置, 不保存cell,则以中心点作为锚点
+    if requireCut:
+        anchor = [0, 0]
+    else:
+        anchor = [int(tW/2), int(tH/2)]
+    rlt, msg, startX, startY, maxVal, final_angle, rotated_frame = \
+        pattern_match_main(img_path, temp_path, pos_corr, False, anchor)
+    if rlt != CFG.RESULT_OK:
+        return rlt, msg, startX, startY, 0, final_angle, '', 0
 
     # 保存cell区域
-    X = max(startX, 0)
-    Y = max(startY, 0)
+    ImgH, ImgW = rotated_frame.shape[:2]
+    X, Y = max(startX, 0), max(startY, 0)
+    # 如果要截图，则需要满足截图尺寸大小
+    if requireCut:
+        if (X+CellW) > ImgW or (Y+CellH) > ImgH:
+            msg = "find match, wrong position"
+            return CFG.RESULT_FAIL_WRONG_POSITION, msg, startX, startY, 0, final_angle, '', 0
+    # 不截图，只返回匹配坐标
+    else:
+        msg = "OK, require no cut"
+        return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, '', 0
+
     roi_img = rotated_frame[Y:Y+CellH, X:X+CellW]
 
     isDefect = 0
     # 检测主流程
     if isDectProcess:
         date = datetime.datetime.now()
-        strFile = date.strftime("%Y%m%d_%H%M%S%f")[:-3] + ".jpg"
-        newpath = CFG.SHARE_HISTORY_DIR + strFile
-        isDefect = random.choice([0, 1])
+        tempDir = CFG.SHARE_HISTORY_DIR + date.strftime("%Y%m%d")
+        if not os.path.exists(tempDir):
+            os.mkdir(tempDir)
+        strFile = date.strftime("%H%M%S%f")[:-3] + ".jpg"
+        newpath = tempDir + "\\" + strFile
+
+        isDefect, maxVal_defect = cad.isDefect_byPatchCompare(temp_path, roi_img, CFG.ALG_MATCH_THRESHOLD)
         roi_path = newpath
     # 训练流程
     else:
@@ -209,38 +268,23 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, CellW, CellH, pos_cor
     # 调试用
     if newpath == temp_path:
         roi_path = "cell.jpg"
-
     cv2.imwrite(roi_path, roi_img)
     return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, roi_path, isDefect
 
-    #print(minVal, maxVal, minLoc, maxLoc)
-    # # 总点位只有1，可能有多个pattern
-    # elif TotalPos == 1:
-    #     # 查找所有匹配值中大于阈值的点;
-    #     all_rects = []
-    #     loc = np.where(result >= match_thresh)
-    #     for i in zip(*loc[::-1]):
-    #         conf = result[i[1]][i[0]]
-    #         all_rects.append([i[0], i[1], i[0]+tW, i[1]+tH, conf])
-    #
-    #     nms_rect = []
-    #     if len(all_rects)>0:
-    #         nms_rect = nms(all_rects, overlap_thresh, max_patterns)
-    #     else:
-    #         print("no match patterns found")
-
-    # return CFG.RESULT_OK, msg, nms_rect
-
 
 def test_matcher():
-    image_path = "testimg/temp_matcher/dd/cc.jpg"
-    temp_path = "testimg/temp_matcher/rotated_temp1.jpg"
+    image_path = "testimg/temp_matcher/x55.jpg"
+    temp_path = "testimg/temp_matcher/x5_temp.jpg"
 
     # 测试不进行角度矫正
     image = cv2.imread(image_path)
-    CellH, CellW = 1500, 1500
-    _, msg, startX, startY, maxVal, angle, roi_path, isDefect = pattern_matcher(image_path, temp_path, 0, 4,
-                                                              CellW, CellH, False)
+    CellH, CellW = 1000, 1000
+    rst, msg, startX, startY, maxVal, angle, roi_path, isDefect = pattern_matcher(image_path, temp_path, 0, 4,
+                                                              False, CellW, CellH, True)
+    if rst != CFG.RESULT_OK:
+        print(msg)
+        return
+
     print("msg={}, startX={}, starY={}, Angle={}".format(msg, startX, startY, angle))
 
     res = [[startX, startY, startX + CellW, startY + CellH]]

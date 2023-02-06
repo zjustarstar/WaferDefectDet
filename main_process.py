@@ -48,7 +48,11 @@ def do_by_commandID(id, img_filepath, request):
         temp_path = request.json.get("TemplatePath")
         CellW = request.json.get("PartCellWidth")
         CellH = request.json.get("PartCellHeight")
+        requireCut = request.json.get("RequireCut")
         isDetectProcess = request.json.get("isDetectionProcess")
+
+
+        # print(CurPos,TotalPos,temp_path,CellW,CellH)
 
         # img_path = "testimg/temp_matcher/img1.jpg"
         # temp_path = "testimg/temp_matcher/temp1.jpg"
@@ -62,11 +66,11 @@ def do_by_commandID(id, img_filepath, request):
         else:
             temp_path = CFG.SHARE_DIR + temp_path
             rslt, msg, startX, startY, maxVal, angle, cell_img_path, isDefect = pm.pattern_matcher(img_filepath, temp_path,
-                                                                                CurPos, TotalPos,
+                                                                                CurPos, TotalPos, requireCut,
                                                                                 CellW, CellH, True, isDetectProcess)
             json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
                          "CellStartY": startY, "MaxMatchVal": maxVal,
-                         "Angle": angle, "CellImgPath": cell_img_path, "isDefect":isDefect}
+                         "Angle": angle, "CellImgPath": cell_img_path, "isDefect     ":isDefect}
     # 位偏检测
     elif id == 7:
         img_path = "testimg/cross_locate/b1.png"
