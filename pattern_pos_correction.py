@@ -1,8 +1,7 @@
 import cv2
 import math
-import config as CFG
 import numpy as np
-import  os
+import os
 import config as CFG
 
 SHOW_LINE = True
@@ -46,26 +45,33 @@ def pos_correction(img_path, debug=False):
     # minLinLength: 能组成一条直线的最少点的数量. 点数量不足的直线将被抛弃.
     # maxLineGap: 能被认为在一条直线上的两点的最大距离
 
-    t2 = 120
+    t2, t3 = 100, 250
     while True:
-        src_edge = cv2.Canny(src_gray, t2, 200)
-        lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
-                                minLineLength=100, maxLineGap=30)
+        for i in range(5):
+            src_edge = cv2.Canny(src_gray, t2, t3)
+            lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
+                                    minLineLength=100, maxLineGap=30)
+            if lines is None:
+                t3 = t3 + 100
+            else:
+                break
+
         # 如果没有线,可能是黑屏?
         if lines is None:
             msg = "fail to find lines in image"
-            return CFG.RESULT_FAIL, msg, 0, None
+            print(t3)
+            return CFG.RESULT_FAIL_NOLINES, msg, 0, None
 
         # 如果线太多，容易引起误判;
         if len(lines) > 100:
             t2 += 100
         else:
             break
-    print(t2)
+    print(t2, t3)
 
     if lines is None:
         msg = "fail to find lines in image"
-        return CFG.RESULT_FAIL, msg, 0, None
+        return CFG.RESULT_FAIL_NOLINES, msg, 0, None
 
     # 填充一些小细缝
     # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))  # 定义结构元素的形状和大小
@@ -106,7 +112,6 @@ def pos_correction(img_path, debug=False):
                 if SHOW_LINE:
                     cv2.line(src, (x1, y1), (x2, y2), (0, 0, 255), 2)
 
-
     # 计算所有角度中，最多的相同角度是哪个角度。该角度即为旋转角度
     distict_angles = list(set(all_angles))
     angle_cnt = [all_angles.count(distict_angles[i]) for i in range(len(distict_angles))]
@@ -142,7 +147,7 @@ def pos_correction_withsave(img_path, debug=False):
     :return: 返回图像的倾斜角度，以及角度旋转矫正后的图像
     '''
     rslt, msg, final_angle, rotated_img = pos_correction(img_path, debug)
-    if rslt == CFG.RESULT_FAIL:
+    if rslt != CFG.RESULT_OK:
         print(msg)
         rotated_img_path = ''
     else:
@@ -157,7 +162,7 @@ def pos_correction_withsave(img_path, debug=False):
 
 
 def test_posCorrection():
-    image_path = "testimg/temp_matcher/dd/23.jpg"
+    image_path = "testimg/temp_matcher/dd/30.jpg"
     pos_correction_withsave(image_path, debug=True)
 
 

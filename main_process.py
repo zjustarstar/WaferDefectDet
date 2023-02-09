@@ -8,6 +8,7 @@ import ref_width_checker as rwc
 import cell_abnormal_detection as abd
 import cross_position_checker as cpc
 import pattern_pos_correction as ppc
+import img_quality_checker as iqc
 
 import wcf_client as wcfClient
 
@@ -50,7 +51,6 @@ def do_by_commandID(id, img_filepath, request):
         CellH = request.json.get("PartCellHeight")
         requireCut = request.json.get("RequireCut")
         isDetectProcess = request.json.get("isDetectionProcess")
-
 
         # print(CurPos,TotalPos,temp_path,CellW,CellH)
 
@@ -96,6 +96,26 @@ def do_by_commandID(id, img_filepath, request):
         res_path = wcfClient.SetCameraParams(ExposurePow, GainPow)
 
         json_data = {"rslt": rslt, "ErrMsg": "OK", "Path": res_path}
+    # 直接返回当前抓拍的未经任何处理的图像
+    elif id == 11:
+        rslt = CFG.RESULT_OK
+        json_data = {"rslt": rslt, "ErrMsg": '',  "PicturePath": img_filepath}
+    elif id == 12:
+        preImgPath = request.json.get("PreImagePath")
+        preImgPath = CFG.SHARE_DIR + preImgPath
+        isCurImgQuaHigher = iqc.compare_img_quality(img_filepath, preImgPath)
+        # 比如比较失败
+        if isCurImgQuaHigher == CFG.RESULT_FAIL:
+            json_data = {"rslt": CFG.RESULT_FAIL, "ErrMsg": 'fail to load image', "isCurImgQualityHigher": 0}
+        else:
+            json_data = {"rslt": CFG.OK, "ErrMsg": '', "isCurImgQualityHigher": int(isCurImgQuaHigher)}
+    elif id == 13:
+        procedureDir = request.json.get("ProductProcedurePath")
+        detCount = request.json.get("DetPointCount")
+        # 设置一些参数
+        CFG.PRODUCT_PROCEDURE_DIR = CFG.SHARE_DIR + procedureDir
+        CFG.DET_POINT_COUNT = detCount
+        json_data = {"rslt": CFG.OK, "ErrMsg": ''}
 
     return json_data
 

@@ -123,6 +123,7 @@ def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, an
     :param anchor:
     :return: CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, rotated_frame
     '''
+    logger = logging.getLogger(CFG.LOG_NAME)
     overlap_thresh = 0.3  # 用于nms
     max_patterns = 6  # 最多有多少个pattern
     resize_scale = 6  # 用于匹配时的缩放比例
@@ -148,7 +149,11 @@ def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, an
         # 可能的倾斜矫正
         rslt, msg, final_angle, rotated_frame = ppc.pos_correction(img_path)
         logger.info("rotated angle={}".format(final_angle))
-        if rotated_frame is None:
+        # 找不到线,无法矫正角度，但是可以继续往下;
+        if rslt == CFG.RESULT_FAIL_NOLINES:
+            print(msg)
+            rotated_frame = ori_frame
+        elif rslt != CFG.RESULT_OK:
             return rslt, msg, 0, 0, 0, 0, None
     else:
         rotated_frame = ori_frame
@@ -166,7 +171,7 @@ def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, an
 
     # 最佳匹配位置
     (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(result)
-    logger.info("full pattern match minVal={0}, maxVal={1}".format(minVal, maxVal))
+    logger.info("match threshould={0}, full pattern match minVal={1}, maxVal={2}".format(CFG.ALG_MATCH_THRESHOLD, minVal, maxVal))
 
     if maxVal < CFG.ALG_MATCH_THRESHOLD:
         msg = "fail to find matched block"
@@ -273,14 +278,14 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, Ce
 
 
 def test_matcher():
-    image_path = "testimg/temp_matcher/x55.jpg"
-    temp_path = "testimg/temp_matcher/x5_temp.jpg"
+    image_path = "testimg/test/20230206152555354.jpg"
+    temp_path = "testimg/test/x5.jpg"
 
     # 测试不进行角度矫正
     image = cv2.imread(image_path)
     CellH, CellW = 1000, 1000
     rst, msg, startX, startY, maxVal, angle, roi_path, isDefect = pattern_matcher(image_path, temp_path, 0, 4,
-                                                              False, CellW, CellH, True)
+                                                              True, CellW, CellH, False)
     if rst != CFG.RESULT_OK:
         print(msg)
         return
