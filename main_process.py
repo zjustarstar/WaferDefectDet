@@ -85,7 +85,6 @@ def do_by_commandID(id, img_filepath, request):
     elif id == 9:
         img_path = "testimg/defect/cc.png"
         rslt, msg, angle, rotateImgPath = ppc.pos_correction_withsave(img_filepath)
-
         json_data = {"rslt": rslt, "ErrMsg": msg, "Angle": angle, "RotatedImagePath": rotateImgPath}
     # 调节相机的增益和曝光
     elif id == 10:
@@ -122,3 +121,4 @@ def do_by_commandID(id, img_filepath, request):
 
 if __name__ == '__main__':
     print("")
+

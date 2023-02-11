@@ -61,22 +61,13 @@ def post():
         if command_id is None:
             return ""
 
-        # 获取图像. 独立线程?
         # frame = camera.grab_image()
+
+        # 获取图像.
         imgPath = wcfClient.GetPicture()
         if not os.path.exists(imgPath):
             json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "picture path not exist"}
             return json.dumps(json_result)
-
-        # filedir = os.getcwd()
-        # filedir = "e:\\camera_data\\temp"
-        # if imgPath is not None:
-        #     strtime = datetime.datetime.now().strftime("%Y_%m_%d_%H%M%S%f")[:-5] + ".jpg"
-        #     img_filepath = filedir + "\\" + strtime
-        #     cv2.imwrite(img_filepath, frame)
-        # else:
-        #     json_result = {"rslt": CFG.RESULT_FAIL, "ErrMsg": "fail to grab image"}
-        #     return json.dumps(json_result)
 
         json_result = mp.do_by_commandID(command_id, imgPath, request)
         logger.info("result:{0}\n".format(json_result))

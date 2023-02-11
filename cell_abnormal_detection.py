@@ -95,7 +95,7 @@ def isDefect_byPatchCompare(templepath, testingImg, threshould):
     return 0, avrage
 
 
-def cell_abnormal_det(img_path):
+def cell_abnormal_det(img_path,):
     msg = "OK"
 
     image = cv2.imread(img_path)
