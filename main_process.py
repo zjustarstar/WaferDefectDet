@@ -9,9 +9,11 @@ import cell_abnormal_detection as abd
 import cross_position_checker as cpc
 import pattern_pos_correction as ppc
 import img_quality_checker as iqc
-
+import patchcore_main as patchcore
 import wcf_client as wcfClient
 
+
+patchcore_models = []
 
 # 只需要一个commandID作为参数;
 def do_by_commandID(id, img_filepath, request):
@@ -38,10 +40,13 @@ def do_by_commandID(id, img_filepath, request):
         json_data = {"rslt": rslt, "ErrMsg": msg, "ImagePath": img_filepath, "Width": ref_width}
     # 缺陷检测
     elif id == 5:
-        img_path = "testimg/defect/a2.png"
-        rslt, msg, is_defect, defect_type = abd.cell_abnormal_det(img_path)
-        json_data = {"rslt": rslt, "ErrMsg": msg, "ImagePath": img_filepath,
-                     "isDefect": is_defect, "DefectType": defect_type}
+        # img_path = "testimg/defect/a2.png"
+        defect_type = 0
+        bi = request.json.get("BlockIndex")
+        score = patchcore.get_single_image_score(img_filepath, patchcore_models[bi])
+        is_defect = 1 if score>2.0 else 0
+        json_data = {"rslt": CFG.RESULT_OK, "ErrMsg": 'OK', "ImagePath": img_filepath,
+                     "score": score, "isDefect": is_defect, "DefectType": defect_type}
     # PP_GetCellPattern, 获取pattern
     elif id == 6:
         CurPos = request.json.get("PartCellNo")
@@ -78,8 +83,10 @@ def do_by_commandID(id, img_filepath, request):
         json_data = {"rslt": rslt, "ErrMsg": msg, "ImagePath": img_filepath, "isPosOK": isPosOK}
     # 缺陷检测的模型训练
     elif id == 8:
-        rslt = 0
+        rslt = CFG.RESULT_OK
         msg = "OK"
+        ok_img_path = './traindata/OK'
+        patchcore.train_data(ok_img_path, 'e:\\camera_data\\weight')
         json_data = {"rslt": rslt, "ErrMsg": msg}
     # 确认cell图像的角度，并将矫正后的图像的地址返回
     elif id == 9:
@@ -101,19 +108,26 @@ def do_by_commandID(id, img_filepath, request):
         json_data = {"rslt": rslt, "ErrMsg": '',  "PicturePath": img_filepath}
     elif id == 12:
         preImgPath = request.json.get("PreImagePath")
-        preImgPath = CFG.SHARE_DIR + preImgPath
+        # preImgPath = CFG.SHARE_DIR + preImgPath
         isCurImgQuaHigher = iqc.compare_img_quality(img_filepath, preImgPath)
-        # 比如比较失败
+        # 如果比较失败
         if isCurImgQuaHigher == CFG.RESULT_FAIL:
-            json_data = {"rslt": CFG.RESULT_FAIL, "ErrMsg": 'fail to load image', "isCurImgQualityHigher": 0}
+            json_data = {"rslt": CFG.RESULT_FAIL, "ErrMsg": 'fail to load image',
+                         "isCurImgQualityHigher": 0, "curImgPath":img_filepath}
         else:
-            json_data = {"rslt": CFG.OK, "ErrMsg": '', "isCurImgQualityHigher": int(isCurImgQuaHigher)}
+            json_data = {"rslt": CFG.RESULT_OK, "ErrMsg": '',
+                         "isCurImgQualityHigher": int(isCurImgQuaHigher), "curImgPath":img_filepath}
+    # 设置当前的产品/流程,同时加载模型
     elif id == 13:
         procedureDir = request.json.get("ProductProcedurePath")
         detCount = request.json.get("DetPointCount")
         # 设置一些参数
         CFG.PRODUCT_PROCEDURE_DIR = CFG.SHARE_DIR + procedureDir
         CFG.DET_POINT_COUNT = detCount
+        # 加载模型
+        for i in range(detCount):
+            m = patchcore.load_model(procedureDir + "weight" + str(i+1))
+            patchcore_models.append(m)
         json_data = {"rslt": CFG.OK, "ErrMsg": ''}
 
     return json_data
