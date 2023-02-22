@@ -9,6 +9,7 @@ import logging
 import numpy as np
 import pattern_pos_correction as ppc
 import cell_abnormal_detection as cad
+import patchcore_main
 
 
 def init_log():
@@ -206,7 +207,7 @@ def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, an
 
 
 def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, CellH,
-                    pos_corr=True, isDectProcess=True):
+                    pos_corr=True, isDectProcess=True, patchcore_model=None):
     '''
     :param img_path: 当前抓拍的图像的路径
     :param temp_path: 模板的路径
@@ -229,12 +230,14 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, Ce
 
     # 如果需要切割cell，则左上角作为锚点.
     # 否则，如果只是为了查找位置, 不保存cell,则以中心点作为锚点
+    only_most_similar = False
     if requireCut:
         anchor = [0, 0]
+        only_most_similar = True
     else:
         anchor = [int(tW/2), int(tH/2)]
     rlt, msg, startX, startY, maxVal, final_angle, rotated_frame = \
-        pattern_match_main(img_path, temp_path, pos_corr, False, anchor)
+        pattern_match_main(img_path, temp_path, pos_corr, only_most_similar, anchor)
     if rlt != CFG.RESULT_OK:
         return rlt, msg, startX, startY, 0, final_angle, '', 0
 
@@ -253,7 +256,7 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, Ce
 
     roi_img = rotated_frame[Y:Y+CellH, X:X+CellW]
 
-    isDefect = 0
+    is_defect = 0
     # 检测主流程
     if isDectProcess:
         date = datetime.datetime.now()
@@ -263,7 +266,8 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, Ce
         strFile = date.strftime("%H%M%S%f")[:-3] + ".jpg"
         newpath = tempDir + "\\" + strFile
 
-        isDefect, maxVal_defect = cad.isDefect_byPatchCompare(temp_path, roi_img, CFG.ALG_MATCH_THRESHOLD)
+        # isDefect, maxVal_defect = cad.isDefect_byPatchCompare(temp_path, roi_img, CFG.ALG_MATCH_THRESHOLD)
+        is_defect = patchcore_main.cv2_img_is_defect(roi_img, patchcore_model)
         roi_path = newpath
     # 训练流程
     else:
@@ -274,7 +278,7 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, Ce
     if newpath == temp_path:
         roi_path = "cell.jpg"
     cv2.imwrite(roi_path, roi_img)
-    return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, roi_path, isDefect
+    return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, roi_path, is_defect
 
 
 def test_matcher():

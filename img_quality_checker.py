@@ -7,16 +7,18 @@ import config as CFG
 
 # 该值越大越好
 def get_img_quality(img_path):
+    resize_scale = 8
     img = cv2.imread(img_path)
     if img is None:
         msg = "fail to load image"
         return CFG.RESULT_FAIL
 
     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    imgH, imgW = img_gray.shape[:2]
+    img_gray_resize = cv2.resize(img_gray, (int(img_gray.shape[1] / resize_scale), int(img_gray.shape[0] / resize_scale)))
+    imgH, imgW = img_gray_resize.shape[:2]
 
-    margin = 300  # 不考虑边上的
-    roiImg = img_gray[margin:imgH-margin, margin:imgW-margin]
+    margin = 50  # 不考虑边上的
+    roiImg = img_gray_resize[margin:imgH-margin, margin:imgW-margin]
     img_array = np.array(roiImg)
     img_array_line = img_array.reshape([1,img_array.shape[0]*img_array.shape[1]])
     img_std = np.std(img_array_line)

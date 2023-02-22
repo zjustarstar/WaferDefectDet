@@ -22,3 +22,4 @@ DET_POINT_COUNT = 1                # 检测点个数
 
 #算法阈值
 ALG_MATCH_THRESHOLD = 0.9        # 模板匹配的阈值
+ALG_Defect_THRESHOLD = 2.0       # 缺陷检查阈值

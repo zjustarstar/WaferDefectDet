@@ -18,6 +18,7 @@ from patchcore.datasets.jy import JYDataset
 
 img_resize, crop_size = 366, 320
 
+
 def train_data(ok_image_path: str, weight_save_path) -> str:
     """
     根据正常图片训练模型
@@ -75,6 +76,10 @@ def train_data(ok_image_path: str, weight_save_path) -> str:
 
 def load_model(weight_path):
     device = torch.device("cpu")
+
+    if not (os.path.exists(os.path.join(weight_path, "patchcore_params.pkl"))
+            and os.path.exists(os.path.join(weight_path, "nnscorer_search_index.faiss"))):
+        return None
     # device_context = (
     #     torch.cuda.device(f'cuda:{device.index}')
     #     if "cuda" in device.type.lower()
@@ -93,7 +98,7 @@ def load_model(weight_path):
     return patchcore_instance
 
 
-def get_single_image_score(image_path: str, patchcore_instance) -> List[float]:
+def get_single_image_score(image_path: str, patchcore_instance) -> float:
     """
     计算单张图片的异常得分，分数越大，异常的可能性越高
     Args:
@@ -119,10 +124,10 @@ def get_single_image_score(image_path: str, patchcore_instance) -> List[float]:
     im = im.unsqueeze(0)
     score, _ = patchcore_instance.predict(im)
 
-    return score[0]
+    return float(score[0])
 
 
-def get_images_score(image_path: str, patchcore_instance) -> List[float]:
+def get_images_score(image_path: str, patchcore_instance):
     """
     计算每张图片的异常得分，分数越大，异常的可能性越高
     Args:
@@ -170,9 +175,28 @@ def get_images_score(image_path: str, patchcore_instance) -> List[float]:
 
 
 if __name__ == '__main__':
-   # weight_path = train_data("traindata/OK", './models')
-    patchcore_instance = load_model("./models")
+    # weight_path = train_data("traindata/OK", './models')
+    patchcore_instance = load_model("./models/aa")
     print("load model ok")
     # scores = get_images_score("./traindata/NG", patchcore_instance)
-    score = get_single_image_score('./traindata/NG/142047955.jpg', patchcore_instance)
+    score = get_single_image_score('./testimg/test.jpg', patchcore_instance)
     print(score)
+
+
+def cv2_img_is_defect(cv2_img, patchcore_model):
+    transform_img = transforms.Compose([
+        transforms.Resize(img_resize),
+        transforms.CenterCrop(crop_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    im = PIL.Image.fromarray(cv2_img)
+    if im is None:
+        return -1
+
+    im = im.convert("RGB")
+    im = transform_img(im)
+    im = im.unsqueeze(0)
+    score, _ = patchcore_model.predict(im)
+
+    return 1 if float(score[0]) > 2.0 else 0
