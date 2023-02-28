@@ -1,6 +1,7 @@
 import cv2
 import math
 import numpy as np
+import glob
 import os
 import config as CFG
 
@@ -28,7 +29,7 @@ def pos_correction(img_path, debug=False):
     :return: 返回图像的倾斜角度，以及角度旋转矫正后的图像
     '''
     MAX_ROATATE_ANGLE = 15  # 倾斜程度不能超过这个角度
-    resize_scale = 6        # 为了加快速度进行的缩放
+    resize_scale = 6       # 为了加快速度进行的缩放
 
     ori_src = cv2.imread(img_path)
     if ori_src is None:
@@ -45,49 +46,32 @@ def pos_correction(img_path, debug=False):
     # minLinLength: 能组成一条直线的最少点的数量. 点数量不足的直线将被抛弃.
     # maxLineGap: 能被认为在一条直线上的两点的最大距离
 
-    t2, t3 = 100, 250
-    while True:
-        for i in range(5):
-            src_edge = cv2.Canny(src_gray, t2, t3)
-            lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
-                                    minLineLength=100, maxLineGap=30)
-            if lines is None:
-                t3 = t3 + 100
-            else:
-                break
+    x = cv2.Sobel(src_gray, cv2.CV_16S, 1, 0)
+    y = cv2.Sobel(src_gray, cv2.CV_16S, 0, 1)
 
-        # 如果没有线,可能是黑屏?
-        if lines is None:
-            msg = "fail to find lines in image"
-            print(t3)
-            return CFG.RESULT_FAIL_NOLINES, msg, 0, None
+    # 转换数据并合成
+    Scale_absX = cv2.convertScaleAbs(x)  # 格式转换函数
+    Scale_absY = cv2.convertScaleAbs(y)
+    result = cv2.addWeighted(Scale_absX, 0.5, Scale_absY, 0.5, 0)  # 图像混合
 
-        # 如果线太多，容易引起误判;
-        if len(lines) > 100:
-            t2 += 100
-        else:
-            break
-    print(t2, t3)
+    res_thre, src_edge = cv2.threshold(result, 0, 255, cv2.THRESH_OTSU)
+    print(res_thre)
+    lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
+                            minLineLength=100, maxLineGap=10)
 
     if lines is None:
         msg = "fail to find lines in image"
+        print("binary threshold:{}".format(res_thre))
         return CFG.RESULT_FAIL_NOLINES, msg, 0, None
-
-    # 填充一些小细缝
-    # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))  # 定义结构元素的形状和大小
-    # edge_d = cv2.dilate(src_edge, kernel)  # 膨胀
-    # src_edge = cv2.erode(edge_d, kernel) # 腐蚀
-    # cv2.imshow("edges", src_edge)
-    #
-    # # 删除小的连通区域
-    # contours, _ = cv2.findContours(src_edge, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
-    # # 对于每一个连通区域
-    # for i in range(len(contours)):
-    #     for num, contour in enumerate(contours):
-    #         if cv2.contourArea(contour) < 50:
-    #             x, y, w, h = cv2.boundingRect(contour)
-    #             src_edge[y:y + h, x:x + w] = 0
-    # cv2.imshow("edges2", src_edge)
+    elif len(lines)>200:
+        ratio = 1.2
+        for i in range(5):
+            print("too much lines, round {}".format(i))
+            res_thre, src_edge = cv2.threshold(result, int(res_thre*ratio), 255, cv2.THRESH_BINARY)
+            lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
+                                    minLineLength=100, maxLineGap=30)
+            if len(lines) < 200:
+                break
 
     all_angles = []
     for i in range(len(lines)):
@@ -162,10 +146,18 @@ def pos_correction_withsave(img_path, debug=False):
 
 
 def test_posCorrection():
-    image_path = "testimg/temp_matcher/dd/30.jpg"
+    image_path = "testimg/pos_corr/20230206190628978.jpg"
     pos_correction_withsave(image_path, debug=True)
 
 
+def test_posCorrection_dir():
+    dir = "testimg/temp_matcher/dd"
+    images = glob.glob(os.path.join(dir, '*'))
+    for img in images:
+        print("processing file:{}".format(img))
+        pos_correction_withsave(img, debug=False)
+
+
 if __name__ == '__main__':
-    test_posCorrection()
+    test_posCorrection_dir()
 

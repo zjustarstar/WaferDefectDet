@@ -13,13 +13,15 @@ ocr = PaddleOCR(use_angle_cls=True, cls_thresh=0.5,
 
 # 版号读取
 def get_rectileID(img_file):
-    res = ocr.ocr(img_file, cls=True)
-    result = []
-    for i in range(len(res)):
-        result.append(res[i])
+    result = ocr.ocr(img_file, cls=True)
+    # for idx in range(len(result)):
+    #     res = result[idx]
+    #     for line in res:
+    #         print(line)
 
     msg = "No text found"
     rslt = CFG.RESULT_FAIL
+    result = result[0]
     if len(result) > 0:
         # list[[[x1,y1],[x2,y2],[x3,y3],[x4,y4]],...]
         boxes = [line[0] for line in result]
@@ -34,7 +36,7 @@ def get_rectileID(img_file):
 
 
 if __name__ == '__main__':
-    img_file = "testimg/ocr/ng.jpg"
+    img_file = "testimg/ocr/wafernum2.bmp"
 
     _, _, boxes, txts, scores = get_rectileID(img_file)
     image = Image.open(img_file).convert('RGB')

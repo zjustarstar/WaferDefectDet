@@ -122,7 +122,6 @@ def do_by_commandID(id, img_filepath, request):
     elif id == 9:
         img_path = "testimg/defect/cc.png"
         rslt, msg, angle, rotateImgPath = ppc.pos_correction_withsave(img_filepath)
-
         json_data = {"rslt": rslt, "ErrMsg": msg, "Angle": angle, "RotatedImagePath": rotateImgPath}
     # 调节相机的增益和曝光
     elif id == 10:
@@ -173,6 +172,24 @@ def do_by_commandID(id, img_filepath, request):
                 patchcore_models.append(m)
         logger.info("load model ok")
         json_data = {"rslt": CFG.RESULT_OK, "ErrMsg": ''}
+    elif id == 14:
+        procedureDir = request.json.get("ProductProcedurePath")
+        temp_path = request.json.get("TemplatePath")
+        CellW = request.json.get("PartCellWidth")
+        CellH = request.json.get("PartCellHeight")
+        SubTempW = request.json.get("SubTempWidth")
+        SubTempH = request.json.get("SubTempHeight")
+        rslt, msg, startX, startY, \
+        cellImgPath, leftBlockPath, \
+        rightTempPath, downTempPath = pm.get_multiple_temp_by_match(img_filepath, temp_path,
+                                                                                 procedureDir,
+                                                                                 CellW, CellH,
+                                                                                 SubTempW, SubTempH)
+        json_data = {"rslt": rslt, "ErrMsg": msg, "CellStartX": startX,
+                     "CellStartY": startY, "CellImgPath": cellImgPath,
+                     "LeftBlockPath": leftBlockPath,
+                     "RightTempPath": rightTempPath, "DownTempPath": downTempPath}
+
 
     return json_data
 

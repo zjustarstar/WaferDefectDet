@@ -281,13 +281,65 @@ def pattern_matcher(img_path, temp_path, CurPos, TotalPos, requireCut, CellW, Ce
     return CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, roi_path, is_defect
 
 
+def get_multiple_temp_by_match(img_path, temp_path, procedurePath, CellW, CellH, subtempW, subtempH):
+    ori_frame = cv2.imread(img_path)
+    ori_temp = cv2.imread(temp_path)
+    tfile = os.path.split(temp_path)[1]
+    if ori_frame is None or ori_temp is None:
+        msg = "fail to load image"
+        return CFG.RESULT_FAIL, msg, 0, 0, '', '', '',''
+
+    # 查找最匹配的
+    (tH, tW) = ori_frame.shape[:2]
+    rlt, msg, startX, startY, maxVal, final_angle, rotated_frame = \
+        pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=True)
+    if rlt != CFG.RESULT_OK:
+        msg = "fail to find match"
+        return rlt, msg, 0, 0, '', '', '', ''
+
+    # 保存cell区域
+    ImgH, ImgW = rotated_frame.shape[:2]
+    X, Y = max(startX, 0), max(startY, 0)
+
+    # 判断Cell区域是否可以保存
+    CellCond = (X + CellW) > ImgW or (Y + CellH) > ImgH
+    RightCond = (Y + subtempH) > ImgH or (X+CellW+subtempW) > ImgW
+    # 右侧的宽度等于下侧的高度
+    DownCond = (Y+CellH+subtempW) > ImgH or (X+subtempH) > ImgW
+    # 三个条件都满足才可以
+    if CellCond or RightCond or DownCond:
+        msg = "find match, wrong position"
+        return CFG.RESULT_FAIL_WRONG_POSITION, msg, 0, 0, '', '', '',''
+
+    # 保存grab图像;
+    grab_roi_img = rotated_frame[Y:Y + CellH, X:X + CellW]
+    cellimg_grab = os.path.join(os.path.join(procedurePath, "Block1/Grab/"),tfile)
+    cv2.imwrite(cellimg_grab, grab_roi_img)
+    # 保存左上角的图像，高1000，宽1000
+    left_roi_img = rotated_frame[Y:Y + 1000, X :X + 1000]
+    leftimg_path = os.path.join(os.path.join(procedurePath, "Block1/Template/"), tfile)
+    cv2.imwrite(leftimg_path, left_roi_img)
+    # 保存右上角的图像
+    right_roi_img = rotated_frame[Y:Y+subtempH, X+CellW:X+CellW+subtempW]
+    newfile = "right_" + tfile
+    newpath_right = os.path.join(os.path.join(procedurePath, "SubTemplate/"), newfile)
+    cv2.imwrite(newpath_right, right_roi_img)
+    # 保存左下角的图像
+    dw_roi_img = rotated_frame[Y+CellH:Y+CellH+subtempW, X:X+subtempH]
+    newfile = "down_" + tfile
+    newpath_dw = os.path.join(os.path.join(procedurePath, "SubTemplate/"), newfile)
+    cv2.imwrite(newpath_dw, dw_roi_img)
+
+    return CFG.RESULT_OK, 'OK', X, Y, cellimg_grab, leftimg_path, newpath_right, newpath_dw
+
+
 def test_matcher():
     image_path = "testimg/test/20230206152555354.jpg"
     temp_path = "testimg/test/x5.jpg"
 
     # 测试不进行角度矫正
     image = cv2.imread(image_path)
-    CellH, CellW = 1000, 1000
+    CellH, CellW = 1100, 1500
     rst, msg, startX, startY, maxVal, angle, roi_path, isDefect = pattern_matcher(image_path, temp_path, 0, 4,
                                                               True, CellW, CellH, False)
     if rst != CFG.RESULT_OK:
@@ -314,7 +366,30 @@ def test_matcher():
     cv2.waitKey(0)
 
 
+def test_multiple_cut():
+    image_path = "testimg/test/20230206152555354.jpg"
+    temp_path = "E:/camera_data/procedure/x5.jpg"
+
+    image = cv2.imread(image_path)
+    proceduredir = "E:/camera_data/procedure"
+    CellH, CellW = 5500, 1500
+    SubtempH, SubtempW = 500, 300
+    rst, msg, startX, startY, \
+    path_grab, path_left, path_right, path_dw = get_multiple_temp_by_match(image_path,
+                                                                           temp_path,
+                                                                           proceduredir,
+                                                                           CellW,
+                                                                           CellH,
+                                                                           SubtempW,
+                                                                           SubtempH)
+    if rst != CFG.RESULT_OK:
+        print(msg)
+        return
+    else:
+        print(path_grab, path_left, path_right, path_dw)
+
+
 if __name__ == '__main__':
     logger = init_log()
-    test_matcher()
+    test_multiple_cut()
 
