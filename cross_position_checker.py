@@ -160,11 +160,11 @@ def find_black_outer_rect(img, rects):
 
 
 def save_rect_img(img, rects, path):
-    expand = 20
-    paths = []
+    expand = 20   # 往外扩展一点
+    paths = []    # 保存的路径
     for r in rects:
         x, y, w, h = r
-        roiImg = img[y-expand:y+h+expand, x-expand:x+expand+w]
+        roiImg = img[y-expand:y+h+2*expand, x-expand:x+2*expand+w]
         filename = str(x)+"_"+str(y)+"_"+".jpg"
         f = os.path.join(path, filename)
         paths.append(f)
