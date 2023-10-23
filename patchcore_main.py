@@ -175,12 +175,12 @@ def get_images_score(image_path: str, patchcore_instance):
 
 
 if __name__ == '__main__':
-    # weight_path = train_data("traindata/OK", './models')
-    patchcore_instance = load_model("./models/aa")
-    print("load model ok")
-    # scores = get_images_score("./traindata/NG", patchcore_instance)
-    score = get_single_image_score('./testimg/test.jpg', patchcore_instance)
-    print(score)
+    weight_path = train_data("traindata/OK", './models')
+    # patchcore_instance = load_model("./models/aa")
+    # print("load model ok")
+    # # scores = get_images_score("./traindata/NG", patchcore_instance)
+    # score = get_single_image_score('./testimg/test.jpg', patchcore_instance)
+    # print(score)
 
 
 def cv2_img_is_defect(cv2_img, patchcore_model):

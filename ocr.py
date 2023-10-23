@@ -36,7 +36,7 @@ def get_rectileID(img_file):
 
 
 if __name__ == '__main__':
-    img_file = "testimg/ocr/wafernum2.bmp"
+    img_file = "testimg/ocr/aa.jpg"
 
     _, _, boxes, txts, scores = get_rectileID(img_file)
     image = Image.open(img_file).convert('RGB')

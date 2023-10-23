@@ -1,7 +1,7 @@
 import cv2
 import math
 import numpy as np
-
+import copy
 
 def det_line_by_hough(ori_src, resize_scale=6, debug=False):
     '''
@@ -36,14 +36,20 @@ def det_line_by_hough(ori_src, resize_scale=6, debug=False):
         return []
     # 如果线过多..
     elif len(lines) > 200:
+        plines = copy.deepcopy(lines)
         ratio = 1.2
         for i in range(5):
             print("too much lines, round {}".format(i))
             res_thre, src_edge = cv2.threshold(result, int(res_thre * ratio), 255, cv2.THRESH_BINARY)
             lines = cv2.HoughLinesP(src_edge, 1, np.pi / 180, thre,
                                     minLineLength=100, maxLineGap=30)
-            if len(lines) < 200:
+            # 如果没线了，返回至最近的一次;
+            if len(lines) == 0:
+                lines = copy.deepcopy(plines)
                 break
+            elif len(lines) < 200:
+                break
+            plines = copy.deepcopy(lines)
 
     if debug:
         cv2.imshow("edge map", src_edge)
@@ -110,6 +116,9 @@ def get_angle_by_lines(lines, debug=False):
         if abs(angle) < MAX_ROATATE_ANGLE * nscale:
             all_angles.append(angle)
             final_lines.append([x1, y1, x2, y2])
+
+    if all_angles is None:
+        return -1, []
 
     # 计算所有角度中，最多的相同角度是哪个角度。该角度即为旋转角度
     distict_angles = list(set(all_angles))

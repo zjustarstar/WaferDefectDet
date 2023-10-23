@@ -48,6 +48,9 @@ def pos_correction(img_path, method=1, debug=False):
         return CFG.RESULT_FAIL, msg, 0, None
 
     final_angle, finale_lines = lineDet.get_angle_by_lines(lines, debug)
+    if final_angle == CFG.RESULT_FAIL:
+        msg = "no suitable angles"
+        return CFG.RESULT_FAIL, msg, 0, None
     # print(finale_lines)
 
     # 保存原始大小的旋转后的图
@@ -92,8 +95,8 @@ def pos_correction_withsave(img_path, method=1, debug=False):
 
 
 def test_posCorrection():
-    image_path = "testimg/pos_corr/c3.jpg"
-    pos_correction_withsave(image_path, method=1, debug=True)
+    image_path = "testimg/pos_corr/03162_rotate.jpg"
+    pos_correction_withsave(image_path, method=2, debug=True)
 
 
 def test_posCorrection_dir():

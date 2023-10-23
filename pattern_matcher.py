@@ -113,8 +113,21 @@ def margin_matcher(edge_src_img, edge_temp_img):
     return found, startX, startY, max_match
 
 
+def get_binary_edge_image(gray):
+    x = cv2.Sobel(gray, cv2.CV_16S, 1, 0)
+    y = cv2.Sobel(gray, cv2.CV_16S, 0, 1)
+
+    # 转换数据并合成
+    Scale_absX = cv2.convertScaleAbs(x)  # 格式转换函数
+    Scale_absY = cv2.convertScaleAbs(y)
+    result = cv2.addWeighted(Scale_absX, 0.5, Scale_absY, 0.5, 0)  # 图像混合
+
+    res_thre, src_edge = cv2.threshold(result, 0, 255, cv2.THRESH_OTSU)
+    return res_thre, src_edge
+
+
 # 核心模板匹配程序
-def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, anchor=[0, 0]):
+def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, anchor=[0, 0], method=1):
     '''
     模板匹配核心程序
     :param img_path: 原图
@@ -122,6 +135,7 @@ def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, an
     :param pos_corr: 是否对原图进行角度矫正
     :param onlyMostSim: 是否只返回最高匹配度。如果False，则根据anchor，返回离anchor最近的点
     :param anchor:
+    :param method: 为1时是全图匹配，为2时是二值化线框匹配
     :return: CFG.RESULT_OK, msg, startX, startY, maxVal, final_angle, rotated_frame
     '''
     logger = logging.getLogger(CFG.LOG_NAME)
@@ -137,7 +151,6 @@ def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, an
     template = cv2.resize(template, (int(template.shape[1] / resize_scale), int(template.shape[0] / resize_scale)))
     template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
 
-    # template_edge = cv2.Canny(template_gray, 120, 200)
     (tH, tW) = template.shape[:2]
 
     ori_frame = cv2.imread(img_path)
@@ -164,10 +177,12 @@ def pattern_match_main(img_path, temp_path, pos_corr=True, onlyMostSim=False, an
     frame = cv2.resize(frame, (int(frame.shape[1] / resize_scale), int(frame.shape[0] / resize_scale)))
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-    # detect edges in the resized, grayscale image and apply template
-    # edged_img = cv2.Canny(gray, 120, 200)
-    cv2.equalizeHist(template_gray, template_gray)
-    cv2.equalizeHist(gray, gray)
+    if method==1:
+        cv2.equalizeHist(template_gray, template_gray)
+        cv2.equalizeHist(gray, gray)
+    else:
+        _, gray = get_binary_edge_image(gray)
+        _, template_gray = get_binary_edge_image(template_gray)
     result = cv2.matchTemplate(gray, template_gray, cv2.TM_CCORR_NORMED)
 
     # 最佳匹配位置
@@ -309,7 +324,7 @@ def get_multiple_temp_by_match(img_path, temp_path, procedurePath, CellW, CellH,
     # 三个条件都满足才可以
     if CellCond or RightCond or DownCond:
         msg = "find match, wrong position"
-        return CFG.RESULT_FAIL_WRONG_POSITION, msg, 0, 0, '', '', '',''
+        return CFG.RESULT_FAIL_WRONG_POSITION, msg, startX, startY, '', '', '',''
 
     # 保存grab图像;
     grab_roi_img = rotated_frame[Y:Y + CellH, X:X + CellW]
@@ -334,14 +349,14 @@ def get_multiple_temp_by_match(img_path, temp_path, procedurePath, CellW, CellH,
 
 
 def test_matcher():
-    image_path = "testimg/test/20230206152555354.jpg"
-    temp_path = "testimg/test/x5.jpg"
+    image_path = "testimg/temp_matcher/test0407/151448909.jpg"
+    temp_path = "testimg/temp_matcher/test0407/temp.jpg"
 
     # 测试不进行角度矫正
     image = cv2.imread(image_path)
     CellH, CellW = 1100, 1500
     rst, msg, startX, startY, maxVal, angle, roi_path, isDefect = pattern_matcher(image_path, temp_path, 0, 4,
-                                                              True, CellW, CellH, False)
+                                                              True, CellW, CellH, False, False)
     if rst != CFG.RESULT_OK:
         print(msg)
         return
@@ -362,12 +377,12 @@ def test_matcher():
     tempimg = cv2.resize(tempimg, (int(tempimg.shape[1] / scale), int(tempimg.shape[0] / scale)))
     cv2.imshow("Image", image)
     cv2.imshow("temp", tempimg)
-    cv2.imwrite("match_result.jpg", image)
+    # cv2.imwrite("match_result.jpg", image)
     cv2.waitKey(0)
 
 
 def test_multiple_cut():
-    image_path = "testimg/test/20230206152555354.jpg"
+    image_path = "testimg/test/ok_1.jpg"
     temp_path = "E:/camera_data/procedure/x5.jpg"
 
     image = cv2.imread(image_path)
@@ -391,5 +406,6 @@ def test_multiple_cut():
 
 if __name__ == '__main__':
     logger = init_log()
-    test_multiple_cut()
+    # test_multiple_cut()
+    test_matcher()
 
